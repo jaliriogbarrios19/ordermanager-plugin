@@ -4,6 +4,7 @@ import { formatCurrency } from "../utils/currency";
 import { monthStart, monthEnd, weekStart, weekEnd, today, yearStart, yearEnd, quarterStart, quarterEnd, lastYearStart, lastYearEnd } from "../utils/date";
 import { t as i18n } from "../i18n";
 import { convertir, fetchExchangeRates, rebaseRates } from "../utils/exchange";
+import { MONEDA_SOURCES } from "../types";
 import { VIEW_TYPE_TRANSACCIONES } from "./transacciones-view";
 import { VIEW_TYPE_CLIENTES } from "./clientes-view";
 import { VIEW_TYPE_PROVEEDORES } from "./proveedores-view";
@@ -103,9 +104,10 @@ export class DashboardView extends ItemView {
       "font-size:0.85em;color:var(--text-muted);";
     let displayCurrency = this.plugin.settings.tasaReferencia || "USD";
     const curSelector = curRow.createEl("select");
-    const availableCurrencies = Object.keys(this.plugin.settings.tasasCambio || {});
+    const availableCurrencies = Object.keys(this.plugin.settings.tasasCambio || {}).filter((k) => !k.startsWith("_"));
     for (const c of availableCurrencies) {
-      const opt = curSelector.createEl("option", { text: c });
+      const source = MONEDA_SOURCES.find((s) => s.code === c);
+      const opt = curSelector.createEl("option", { text: source?.label || c, value: c });
       if (c === displayCurrency) opt.selected = true;
     }
     curSelector.onchange = () => {
@@ -256,11 +258,11 @@ export class DashboardView extends ItemView {
 
       const ingresosPeriodo = transacciones
         .filter((t) => t.data.clase === "ingreso" && t.data.fecha >= desde && t.data.fecha <= hasta)
-        .reduce((sum, t) => sum + convertir(t.data.monto || 0, t.data.moneda || "USD", rates, ref), 0);
+        .reduce((sum, t) => sum + (t.data.monto_referencia || convertir(t.data.monto || 0, t.data.moneda || "USD", rates, ref)), 0);
 
       const egresosPeriodo = transacciones
         .filter((t) => t.data.clase === "egreso" && t.data.fecha >= desde && t.data.fecha <= hasta)
-        .reduce((sum, t) => sum + convertir(t.data.monto || 0, t.data.moneda || "USD", rates, ref), 0);
+        .reduce((sum, t) => sum + (t.data.monto_referencia || convertir(t.data.monto || 0, t.data.moneda || "USD", rates, ref)), 0);
 
       const balance = ingresosPeriodo - egresosPeriodo;
 
@@ -472,13 +474,13 @@ export class DashboardView extends ItemView {
         moneda: currency,
       } as any).open();
     };
-    quickBar.createEl("button", { text: `+ ${i18n("newClient").replace("+ ", "")}` }).onclick = () => {
+    quickBar.createEl("button", { text: i18n("newClientTitle") }).onclick = () => {
       new ClienteModal(this.plugin.app, this.plugin, () => this.refresh()).open();
     };
-    quickBar.createEl("button", { text: `+ ${i18n("newProduct").replace("+ ", "")}` }).onclick = () => {
+    quickBar.createEl("button", { text: i18n("newProductTitle") }).onclick = () => {
       new ProductoModal(this.plugin.app, this.plugin, () => this.refresh()).open();
     };
-    quickBar.createEl("button", { text: `+ ${i18n("newDebt").replace("+ ", "")}` }).onclick = () => {
+    quickBar.createEl("button", { text: i18n("newDebtTitle") }).onclick = () => {
       new DeudaModal(this.plugin.app, this.plugin, () => this.refresh()).open();
     };
 

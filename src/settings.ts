@@ -360,6 +360,16 @@ export class OrderManagerSettingTab extends PluginSettingTab {
         await this.plugin.saveSettings();
       }
     );
+
+    containerEl.createEl("h3", { text: "Categorías de proveedores" });
+    this.buildTagList(
+      containerEl,
+      this.plugin.settings.categoriasProveedor,
+      async (values) => {
+        this.plugin.settings.categoriasProveedor = values;
+        await this.plugin.saveSettings();
+      }
+    );
   }
 
   private buildTagList(

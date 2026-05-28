@@ -1,7 +1,9 @@
 import { App, Modal, Notice, Setting, DropdownComponent } from "obsidian";
 import type OrderManagerPlugin from "../main";
 import type { TransaccionData, TransaccionClase } from "../types";
+import { MONEDA_SOURCES } from "../types";
 import { today, now } from "../utils/date";
+import { convertir } from "../utils/exchange";
 
 export class TransaccionModal extends Modal {
   plugin: OrderManagerPlugin;
@@ -99,11 +101,16 @@ export class TransaccionModal extends Modal {
 
     new Setting(form)
       .setName("Moneda")
-      .addText((t) =>
-        t
-          .setValue(this.data.moneda || this.plugin.settings.defaultCurrency)
-          .onChange((v) => (this.data.moneda = v))
-      );
+      .addDropdown((dd: DropdownComponent) => {
+        const monedas = Object.keys(this.plugin.settings.tasasCambio || {}).filter((k) => !k.startsWith("_"));
+        if (monedas.length === 0) monedas.push("USD");
+        for (const m of monedas) {
+          const source = MONEDA_SOURCES.find((s) => s.code === m);
+          dd.addOption(m, source?.label || m);
+        }
+        dd.setValue(this.data.moneda || this.plugin.settings.defaultCurrency);
+        dd.onChange((v) => (this.data.moneda = v));
+      });
 
     new Setting(form).setName("Fecha").addText((t) => {
       t.inputEl.type = "date";
@@ -217,6 +224,9 @@ export class TransaccionModal extends Modal {
         new Notice("El monto debe ser mayor a 0.");
         return;
       }
+      const ref = this.plugin.settings.tasaReferencia || "USD";
+      const rates = this.plugin.settings.tasasCambio || { USD: 1 };
+      this.data.monto_referencia = convertir(this.data.monto || 0, this.data.moneda || "USD", rates, ref);
       await this.plugin.dataManager.saveTransaccion(
         this.data,
         this.existingFile || undefined

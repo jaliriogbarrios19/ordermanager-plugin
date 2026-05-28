@@ -28,6 +28,7 @@ export interface TransaccionData {
   tipo: "transaccion";
   clase: TransaccionClase;
   monto: number;
+  monto_referencia: number;
   moneda: string;
   fecha: string;
   categoria: string;
@@ -104,6 +105,7 @@ export interface OrderManagerSettings {
   mediosPago: string[];
   categoriasProducto: string[];
   categoriasCliente: string[];
+  categoriasProveedor: string[];
 }
 
 export const FIAT_CURRENCIES = [
@@ -168,4 +170,5 @@ export const DEFAULT_SETTINGS: OrderManagerSettings = {
   mediosPago: ["Efectivo", "Transferencia", "Tarjeta de crédito", "Tarjeta de débito", "Cheque", "Billetera digital"],
   categoriasProducto: ["General", "Materia prima", "Producto terminado", "Servicio"],
   categoriasCliente: ["Minorista", "Mayorista", "Corporativo"],
+  categoriasProveedor: ["Insumos", "Servicios", "Tecnología", "Logística", "Otros"],
 };

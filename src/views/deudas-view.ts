@@ -7,6 +7,7 @@ import { formatDate } from "../utils/date";
 import { VIEW_TYPE_DASHBOARD } from "./dashboard-view";
 import { exportDeudasCSV, downloadCSV } from "../utils/export";
 import { t as i18n } from "../i18n";
+import { convertir } from "../utils/exchange";
 
 export const VIEW_TYPE_DEUDAS = "ordermanager-deudas";
 
@@ -236,9 +237,12 @@ export class DeudasView extends ItemView {
               { ...data, monto_pagado: newPagado, estado: updated },
               d.file
             );
+            const ref = this.plugin.settings.tasaReferencia || "USD";
+            const rates = this.plugin.settings.tasasCambio || { USD: 1 };
             await this.plugin.dataManager.saveTransaccion({
               clase: "ingreso",
               monto: parsed,
+              monto_referencia: convertir(parsed, data.moneda, rates, ref),
               moneda: data.moneda,
               fecha: new Date().toISOString().split("T")[0],
               categoria: "Cobro de deuda",

@@ -40,6 +40,7 @@ export function transaccionTemplate(data: Partial<TransaccionData>): string {
     tipo: "transaccion",
     clase: data.clase || "ingreso",
     monto: monto,
+    monto_referencia: data.monto_referencia ?? 0,
     moneda: data.moneda || "USD",
     fecha: data.fecha || today(),
     categoria: data.categoria || "",
