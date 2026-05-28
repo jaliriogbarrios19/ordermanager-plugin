@@ -6,6 +6,7 @@ import { formatCurrency } from "../utils/currency";
 import { formatDate } from "../utils/date";
 import { VIEW_TYPE_DASHBOARD } from "./dashboard-view";
 import { exportDeudasCSV, downloadCSV } from "../utils/export";
+import { t as i18n } from "../i18n";
 
 export const VIEW_TYPE_DEUDAS = "ordermanager-deudas";
 
@@ -37,10 +38,8 @@ export class DeudasView extends ItemView {
     const container = this.contentEl;
     container.empty();
 
-    container.createEl("h2", { text: "Deudas" });
-
-    const backBtn = container.createEl("button", {
-      text: "← Volver al Dashboard",
+    container.createEl("h2", { text: i18n("debts") });
+    const backBtn = container.createEl("button", { text: i18n("backToDashboard"),
       cls: "ordermanager-toolbar",
     });
     backBtn.style.cssText =
@@ -55,17 +54,17 @@ export class DeudasView extends ItemView {
     });
 
     const filterClase = toolbar.createEl("select");
-    filterClase.createEl("option", { text: "Todas", value: "" });
-    filterClase.createEl("option", { text: "A favor (me deben)", value: "a_favor" });
-    filterClase.createEl("option", { text: "En contra (debo)", value: "en_contra" });
+    filterClase.createEl("option", { text: i18n("all"), value: "" });
+    filterClase.createEl("option", { text: i18n("favorMe"), value: "a_favor" });
+    filterClase.createEl("option", { text: i18n("againstMe"), value: "en_contra" });
 
     const filterEstado = toolbar.createEl("select");
-    filterEstado.createEl("option", { text: "Todos los estados", value: "" });
-    filterEstado.createEl("option", { text: "Pendiente", value: "pendiente" });
-    filterEstado.createEl("option", { text: "Pagada", value: "pagada" });
-    filterEstado.createEl("option", { text: "Vencida", value: "vencida" });
+    filterEstado.createEl("option", { text: i18n("allStates"), value: "" });
+    filterEstado.createEl("option", { text: i18n("pending"), value: "pendiente" });
+    filterEstado.createEl("option", { text: i18n("paid"), value: "pagada" });
+    filterEstado.createEl("option", { text: i18n("overdue"), value: "vencida" });
 
-    toolbar.createEl("button", { text: "+ Nueva", cls: "" }).onclick = () => {
+    toolbar.createEl("button", { text: i18n("newDebt"), cls: "" }).onclick = () => {
       new DeudaModal(this.plugin.app, this.plugin, () => this.refresh()).open();
     };
 
@@ -161,8 +160,8 @@ export class DeudasView extends ItemView {
 
       if (filtered.length === 0) {
         const empty = tableWrapper.createDiv({ cls: "ordermanager-empty" });
-        empty.createEl("h3", { text: "Sin deudas" });
-        empty.createEl("p", { text: "Agregá tu primera deuda usando el botón '+ Nueva'." });
+        empty.createEl("h3", { text: i18n("noDebts") });
+        empty.createEl("p", { text: i18n("noDebtsDesc") });
         return;
       }
 

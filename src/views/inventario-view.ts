@@ -5,6 +5,7 @@ import { ProductoModal } from "../modals/producto-modal";
 import { formatCurrency } from "../utils/currency";
 import { VIEW_TYPE_DASHBOARD } from "./dashboard-view";
 import { exportProductosCSV, downloadCSV } from "../utils/export";
+import { t as i18n } from "../i18n";
 
 export const VIEW_TYPE_INVENTARIO = "ordermanager-inventario";
 
@@ -36,10 +37,8 @@ export class InventarioView extends ItemView {
     const container = this.contentEl;
     container.empty();
 
-    container.createEl("h2", { text: "Inventario" });
-
-    const backBtn = container.createEl("button", {
-      text: "← Volver al Dashboard",
+    container.createEl("h2", { text: i18n("inventory") });
+    const backBtn = container.createEl("button", { text: i18n("backToDashboard"),
       cls: "ordermanager-toolbar",
     });
     backBtn.style.cssText =
@@ -59,7 +58,7 @@ export class InventarioView extends ItemView {
       filterCat.createEl("option", { text: cat, value: cat });
     }
 
-    toolbar.createEl("button", { text: "+ Nuevo", cls: "" }).onclick = () => {
+    toolbar.createEl("button", { text: i18n("newProduct"), cls: "" }).onclick = () => {
       new ProductoModal(this.plugin.app, this.plugin, () => this.refresh()).open();
     };
 
@@ -91,10 +90,8 @@ export class InventarioView extends ItemView {
 
       if (filtered.length === 0) {
         const empty = tableWrapper.createDiv({ cls: "ordermanager-empty" });
-        empty.createEl("h3", { text: "Sin productos" });
-        empty.createEl("p", {
-          text: "Agregá tu primer producto usando el botón '+ Nuevo'.",
-        });
+        empty.createEl("h3", { text: i18n("noProducts") });
+        empty.createEl("p", { text: i18n("noProductsDesc") });
         return;
       }
 

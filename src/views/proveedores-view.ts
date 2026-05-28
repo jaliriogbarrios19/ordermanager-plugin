@@ -4,6 +4,7 @@ import type { ProveedorData } from "../types";
 import { ProveedorModal } from "../modals/proveedor-modal";
 import { VIEW_TYPE_DASHBOARD } from "./dashboard-view";
 import { exportProveedoresCSV, downloadCSV } from "../utils/export";
+import { t as i18n } from "../i18n";
 
 export const VIEW_TYPE_PROVEEDORES = "ordermanager-proveedores";
 
@@ -35,10 +36,10 @@ export class ProveedoresView extends ItemView {
     const container = this.contentEl;
     container.empty();
 
-    container.createEl("h2", { text: "Proveedores" });
+    container.createEl("h2", { text: i18n("suppliers") });
 
     const backBtn = container.createEl("button", {
-      text: "← Volver al Dashboard",
+      text: i18n("backToDashboard"),
       cls: "ordermanager-toolbar",
     });
     backBtn.style.cssText =
@@ -52,7 +53,7 @@ export class ProveedoresView extends ItemView {
       placeholder: "Buscar proveedor...",
     });
 
-    toolbar.createEl("button", { text: "+ Nuevo", cls: "" }).onclick = () => {
+    toolbar.createEl("button", { text: i18n("newSupplier"), cls: "" }).onclick = () => {
       new ProveedorModal(this.plugin.app, this.plugin, () => this.refresh()).open();
     };
 
@@ -81,10 +82,8 @@ export class ProveedoresView extends ItemView {
 
       if (filtered.length === 0) {
         const empty = tableWrapper.createDiv({ cls: "ordermanager-empty" });
-        empty.createEl("h3", { text: "Sin proveedores" });
-        empty.createEl("p", {
-          text: "Agregá tu primer proveedor usando el botón '+ Nuevo'.",
-        });
+        empty.createEl("h3", { text: i18n("noSuppliers") });
+        empty.createEl("p", { text: i18n("noSuppliersDesc") });
         return;
       }
 

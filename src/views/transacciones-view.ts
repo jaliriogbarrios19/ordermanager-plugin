@@ -6,6 +6,7 @@ import { formatDate } from "../utils/date";
 import { TransaccionModal } from "../modals/transaccion-modal";
 import { exportToCSV, downloadCSV } from "../utils/export";
 import { VIEW_TYPE_DASHBOARD } from "./dashboard-view";
+import { t as i18n } from "../i18n";
 
 export const VIEW_TYPE_TRANSACCIONES = "ordermanager-transacciones";
 
@@ -37,10 +38,10 @@ export class TransaccionesView extends ItemView {
     const container = this.contentEl;
     container.empty();
 
-    container.createEl("h2", { text: "Transacciones" });
+    container.createEl("h2", { text: i18n("transactions") });
 
     const backBtn = container.createEl("button", {
-      text: "← Volver al Dashboard",
+      text: i18n("backToDashboard"),
       cls: "ordermanager-toolbar",
     });
     backBtn.style.cssText =
@@ -57,12 +58,12 @@ export class TransaccionesView extends ItemView {
     const toolbar = container.createDiv({ cls: "ordermanager-toolbar" });
 
     const filterTipo = toolbar.createEl("select");
-    filterTipo.createEl("option", { text: "Todos", value: "" });
-    filterTipo.createEl("option", { text: "Ingresos", value: "ingreso" });
-    filterTipo.createEl("option", { text: "Egresos", value: "egreso" });
+    filterTipo.createEl("option", { text: i18n("all"), value: "" });
+    filterTipo.createEl("option", { text: i18n("incomes"), value: "ingreso" });
+    filterTipo.createEl("option", { text: i18n("expenses"), value: "egreso" });
 
     const filterCat = toolbar.createEl("select");
-    filterCat.createEl("option", { text: "Todas las categorías", value: "" });
+    filterCat.createEl("option", { text: i18n("allCategories"), value: "" });
     const allCats = [
       ...this.plugin.settings.categoriasIngreso,
       ...this.plugin.settings.categoriasEgreso,
@@ -74,7 +75,7 @@ export class TransaccionesView extends ItemView {
 
     const searchInput = toolbar.createEl("input", {
       type: "text",
-      placeholder: "Buscar...",
+      placeholder: i18n("search"),
     });
 
     const dateFrom = toolbar.createEl("input", { type: "date" });
@@ -82,12 +83,12 @@ export class TransaccionesView extends ItemView {
 
     let currentFiltered: typeof sorted = sorted;
 
-    toolbar.createEl("button", { text: "+ Nueva", cls: "" }).onclick = () => {
+    toolbar.createEl("button", { text: i18n("newTransaction"), cls: "" }).onclick = () => {
       new TransaccionModal(this.plugin.app, this.plugin, () => this.refresh()).open();
     };
 
     toolbar.createEl("button", {
-      text: "Exportar CSV",
+      text: i18n("exportCSV"),
       cls: "secondary",
     }).onclick = () => {
       const csv = exportToCSV(currentFiltered.map((t) => ({ data: t.data })));
@@ -121,10 +122,8 @@ export class TransaccionesView extends ItemView {
 
       if (currentFiltered.length === 0) {
         const empty = tableWrapper.createDiv({ cls: "ordermanager-empty" });
-        empty.createEl("h3", { text: "Sin transacciones" });
-        empty.createEl("p", {
-          text: "No se encontraron transacciones con los filtros actuales.",
-        });
+        empty.createEl("h3", { text: i18n("noTransactions") });
+        empty.createEl("p", { text: i18n("noTransactionsDesc") });
         return;
       }
 
@@ -142,7 +141,7 @@ export class TransaccionesView extends ItemView {
 
         row.createEl("td", { text: formatDate(d.fecha) });
         row.createEl("td", {
-          text: d.clase === "ingreso" ? "Ingreso" : "Egreso",
+          text: d.clase === "ingreso" ? i18n("income") : i18n("expense"),
           cls: `ordermanager-badge ${d.clase}`,
         });
         row.createEl("td", {

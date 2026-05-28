@@ -4,6 +4,7 @@ import type { ClienteData } from "../types";
 import { ClienteModal } from "../modals/cliente-modal";
 import { VIEW_TYPE_DASHBOARD } from "./dashboard-view";
 import { exportClientesCSV, downloadCSV } from "../utils/export";
+import { t as i18n } from "../i18n";
 
 export const VIEW_TYPE_CLIENTES = "ordermanager-clientes";
 
@@ -35,10 +36,10 @@ export class ClientesView extends ItemView {
     const container = this.contentEl;
     container.empty();
 
-    container.createEl("h2", { text: "Clientes" });
+    container.createEl("h2", { text: i18n("clients") });
 
     const backBtn = container.createEl("button", {
-      text: "← Volver al Dashboard",
+      text: i18n("backToDashboard"),
       cls: "ordermanager-toolbar",
     });
     backBtn.style.cssText =
@@ -49,10 +50,10 @@ export class ClientesView extends ItemView {
 
     const searchInput = toolbar.createEl("input", {
       type: "text",
-      placeholder: "Buscar cliente...",
+      placeholder: `${i18n("search")}`,
     });
 
-    toolbar.createEl("button", { text: "+ Nuevo", cls: "" }).onclick = () => {
+    toolbar.createEl("button", { text: i18n("newClient"), cls: "" }).onclick = () => {
       new ClienteModal(this.plugin.app, this.plugin, () => this.refresh()).open();
     };
 
@@ -81,8 +82,8 @@ export class ClientesView extends ItemView {
 
       if (filtered.length === 0) {
         const empty = tableWrapper.createDiv({ cls: "ordermanager-empty" });
-        empty.createEl("h3", { text: "Sin clientes" });
-        empty.createEl("p", { text: "Agregá tu primer cliente usando el botón '+ Nuevo'." });
+        empty.createEl("h3", { text: i18n("noClients") });
+        empty.createEl("p", { text: i18n("noClientsDesc") });
         return;
       }
 
