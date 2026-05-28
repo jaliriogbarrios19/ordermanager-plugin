@@ -1,0 +1,249 @@
+/* OrderManager Plugin Styles */
+
+.ordermanager-dashboard {
+  padding: 16px;
+}
+
+.ordermanager-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.ordermanager-kpi-card {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.ordermanager-kpi-card h3 {
+  margin: 0 0 8px 0;
+  font-size: 0.85em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ordermanager-kpi-value {
+  font-size: 1.8em;
+  font-weight: 700;
+  margin: 0;
+}
+
+.ordermanager-kpi-value.positive {
+  color: var(--color-green);
+}
+
+.ordermanager-kpi-value.negative {
+  color: var(--color-red);
+}
+
+.ordermanager-kpi-value.neutral {
+  color: var(--text-normal);
+}
+
+.ordermanager-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+.ordermanager-table th,
+.ordermanager-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.ordermanager-table th {
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--background-secondary);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.ordermanager-table tr:hover {
+  background: var(--background-modifier-hover);
+}
+
+.ordermanager-table .clickable-row {
+  cursor: pointer;
+}
+
+.ordermanager-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.ordermanager-toolbar input,
+.ordermanager-toolbar select {
+  padding: 6px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 0.9em;
+}
+
+.ordermanager-toolbar button {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 4px;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 500;
+}
+
+.ordermanager-toolbar button:hover {
+  background: var(--interactive-accent-hover);
+}
+
+.ordermanager-toolbar button.secondary {
+  background: var(--background-modifier-border);
+  color: var(--text-normal);
+}
+
+.ordermanager-toolbar button.danger {
+  background: var(--color-red);
+}
+
+.ordermanager-modal {
+  padding: 16px;
+}
+
+.ordermanager-modal h3 {
+  margin: 0 0 16px 0;
+}
+
+.ordermanager-form-group {
+  margin-bottom: 12px;
+}
+
+.ordermanager-form-group label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.85em;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.ordermanager-form-group input,
+.ordermanager-form-group select,
+.ordermanager-form-group textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 0.9em;
+  box-sizing: border-box;
+}
+
+.ordermanager-form-group textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.ordermanager-form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.ordermanager-form-row .ordermanager-form-group {
+  flex: 1;
+}
+
+.ordermanager-form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.ordermanager-form-actions button {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.ordermanager-form-actions button.primary {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.ordermanager-form-actions button.secondary {
+  background: var(--background-modifier-border);
+  color: var(--text-normal);
+}
+
+.ordermanager-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.ordermanager-badge.ingreso {
+  background: rgba(var(--color-green-rgb), 0.15);
+  color: var(--color-green);
+}
+
+.ordermanager-badge.egreso {
+  background: rgba(var(--color-red-rgb), 0.15);
+  color: var(--color-red);
+}
+
+.ordermanager-badge.pendiente {
+  background: rgba(var(--color-yellow-rgb), 0.15);
+  color: var(--color-yellow);
+}
+
+.ordermanager-badge.pagada {
+  background: rgba(var(--color-green-rgb), 0.15);
+  color: var(--color-green);
+}
+
+.ordermanager-badge.vencida {
+  background: rgba(var(--color-red-rgb), 0.15);
+  color: var(--color-red);
+}
+
+.ordermanager-empty {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-muted);
+}
+
+.ordermanager-empty h3 {
+  margin-bottom: 8px;
+}
+
+.ordermanager-empty p {
+  margin-bottom: 16px;
+}
+
+.ordermanager-section-title {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin: 24px 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
