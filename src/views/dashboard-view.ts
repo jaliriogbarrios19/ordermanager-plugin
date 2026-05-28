@@ -458,20 +458,6 @@ export class DashboardView extends ItemView {
       }
     };
 
-    renderPeriodData();
-
-    const navBar = container.createDiv({ cls: "ordermanager-toolbar" });
-    navBar.createEl("button", { text: i18n("transactions") }).onclick = () =>
-      this.plugin.activateView(VIEW_TYPE_TRANSACCIONES);
-    navBar.createEl("button", { text: i18n("clients") }).onclick = () =>
-      this.plugin.activateView(VIEW_TYPE_CLIENTES);
-    navBar.createEl("button", { text: i18n("suppliers") }).onclick = () =>
-      this.plugin.activateView(VIEW_TYPE_PROVEEDORES);
-    navBar.createEl("button", { text: i18n("inventory") }).onclick = () =>
-      this.plugin.activateView(VIEW_TYPE_INVENTARIO);
-    navBar.createEl("button", { text: i18n("debts") }).onclick = () =>
-      this.plugin.activateView(VIEW_TYPE_DEUDAS);
-
     container.createEl("div", { cls: "ordermanager-section-title", text: i18n("quickActions") });
     const quickBar = container.createDiv({ cls: "ordermanager-toolbar" });
     quickBar.createEl("button", { text: `+ ${i18n("income")}` }).onclick = () => {
@@ -495,6 +481,20 @@ export class DashboardView extends ItemView {
     quickBar.createEl("button", { text: `+ ${i18n("newDebt").replace("+ ", "")}` }).onclick = () => {
       new DeudaModal(this.plugin.app, this.plugin, () => this.refresh()).open();
     };
+
+    renderPeriodData();
+
+    const navBar = container.createDiv({ cls: "ordermanager-toolbar" });
+    navBar.createEl("button", { text: i18n("transactions") }).onclick = () =>
+      this.plugin.activateView(VIEW_TYPE_TRANSACCIONES);
+    navBar.createEl("button", { text: i18n("clients") }).onclick = () =>
+      this.plugin.activateView(VIEW_TYPE_CLIENTES);
+    navBar.createEl("button", { text: i18n("suppliers") }).onclick = () =>
+      this.plugin.activateView(VIEW_TYPE_PROVEEDORES);
+    navBar.createEl("button", { text: i18n("inventory") }).onclick = () =>
+      this.plugin.activateView(VIEW_TYPE_INVENTARIO);
+    navBar.createEl("button", { text: i18n("debts") }).onclick = () =>
+      this.plugin.activateView(VIEW_TYPE_DEUDAS);
   }
 
   private addKPI(
