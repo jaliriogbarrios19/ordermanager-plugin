@@ -161,9 +161,25 @@ export class TransaccionModal extends Modal {
         dd.onChange((v) => (this.data.medio_pago = v));
       });
 
-    new Setting(form).setName("Comprobante").addText((t) =>
+    const compSetting = new Setting(form).setName("Comprobante").addText((t) =>
       t.setValue(this.data.comprobante || "").onChange((v) => (this.data.comprobante = v))
     );
+    compSetting.addButton((btn) => {
+      btn.setIcon("file").setTooltip("Adjuntar archivo");
+      btn.onClick(() => {
+        const fileInput = document.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = ".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.zip";
+        fileInput.onchange = () => {
+          const file = fileInput.files?.[0];
+          if (file) {
+            this.data.comprobante = file.name;
+            (compSetting.components[0] as any).inputEl.value = file.name;
+          }
+        };
+        fileInput.click();
+      });
+    });
 
     const recRow = form.createDiv({ cls: "ordermanager-form-row" });
     new Setting(recRow.createDiv())

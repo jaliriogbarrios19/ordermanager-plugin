@@ -1,4 +1,4 @@
-import { Plugin, WorkspaceLeaf, FuzzySuggestModal, TFile } from "obsidian";
+import { Plugin, WorkspaceLeaf, FuzzySuggestModal, TFile, Modal, App } from "obsidian";
 
 import { OrderManagerSettingTab } from "./settings";
 import { DataManager } from "./data/manager";
@@ -28,6 +28,10 @@ export default class OrderManagerPlugin extends Plugin {
     this.dataManager = new DataManager(this.app.vault, this.settings);
 
     await this.dataManager.ensureBaseFolders();
+
+    if (!this.settings.onboardingComplete) {
+      new OnboardingModal(this.app, this).open();
+    }
 
     this.addSettingTab(new OrderManagerSettingTab(this.app, this));
 
@@ -227,5 +231,39 @@ class GlobalSearchModal extends FuzzySuggestModal<{ name: string; type: string; 
 
   onChooseItem(item: { name: string; type: string; file: TFile }): void {
     this.plugin.app.workspace.getLeaf("tab").openFile(item.file);
+  }
+}
+
+class OnboardingModal extends Modal {
+  plugin: OrderManagerPlugin;
+
+  constructor(app: App, plugin: OrderManagerPlugin) {
+    super(app);
+    this.plugin = plugin;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.createEl("h2", { text: "Bienvenido a OrderManager" });
+    contentEl.createEl("p", { text: "Tu plugin de contabilidad para emprendimientos." });
+    contentEl.createEl("h4", { text: "Para empezar:" });
+    const list = contentEl.createEl("ol");
+    list.createEl("li", { text: "Andá a Settings → OrderManager → Negocios y creá el tuyo (ej: 'Mi Tienda')." });
+    list.createEl("li", { text: "En Tasas de cambio, agregá Dólar BCV y USDT, y clickeá Actualizar tasas." });
+    list.createEl("li", { text: "Usá el Dashboard para ver tus finanzas y crear transacciones." });
+    list.createEl("li", { text: "Ctrl+P → 'OrderManager' para ver todos los comandos." });
+
+    const btn = contentEl.createEl("button", { text: "Entendido", cls: "mod-cta" });
+    btn.style.cssText = "margin-top:16px;";
+    btn.onclick = async () => {
+      this.plugin.settings.onboardingComplete = true;
+      await this.plugin.saveSettings();
+      this.close();
+    };
+  }
+
+  onClose() {
+    this.contentEl.empty();
   }
 }

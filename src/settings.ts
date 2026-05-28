@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, DropdownComponent, Notice } from "obsidian";
+import { App, PluginSettingTab, Setting, DropdownComponent, Notice, TFile, TFolder, normalizePath } from "obsidian";
 import type OrderManagerPlugin from "./main";
 import type { OrderManagerSettings } from "./types";
 import { FIAT_CURRENCIES, CRYPTO_CURRENCIES, MONEDA_SOURCES } from "./types";
@@ -290,6 +290,34 @@ export class OrderManagerSettingTab extends PluginSettingTab {
       }
     );
 
+    const dupRow = containerEl.createDiv();
+    dupRow.style.cssText = "display:flex;gap:8px;align-items:center;margin-bottom:12px;";
+    const dupSelect = dupRow.createEl("select");
+    for (const n of this.plugin.settings.negocios) {
+      dupSelect.createEl("option", { text: n });
+    }
+    const dupBtn = dupRow.createEl("button", { text: "Duplicar negocio" });
+    dupBtn.style.cssText =
+      "padding:6px 14px;border:none;border-radius:4px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;";
+    dupBtn.onclick = async () => {
+      const source = dupSelect.value;
+      const target = `${source} (copia)`;
+      if (this.plugin.settings.negocios.includes(target)) {
+        new Notice("Ya existe un negocio con ese nombre.");
+        return;
+      }
+      this.plugin.settings.negocios.push(target);
+      await this.plugin.saveSettings();
+      const srcPath = normalizePath(`${this.plugin.settings.baseFolder}/${source}`);
+      const dstPath = normalizePath(`${this.plugin.settings.baseFolder}/${target}`);
+      const srcFolder = this.plugin.app.vault.getAbstractFileByPath(srcPath);
+      if (srcFolder instanceof TFolder) {
+        await this.copyFolder(srcFolder, dstPath);
+      }
+      new Notice(`Negocio "${target}" duplicado.`);
+      this.display();
+    };
+
     containerEl.createEl("h3", { text: t("incomeCategories") });
     this.buildTagList(
       containerEl,
@@ -407,5 +435,17 @@ export class OrderManagerSettingTab extends PluginSettingTab {
     input.onkeydown = (e) => {
       if (e.key === "Enter") addBtn.click();
     };
+  }
+
+  private async copyFolder(src: TFolder, dstPath: string): Promise<void> {
+    await this.plugin.app.vault.createFolder(dstPath);
+    for (const child of src.children) {
+      if (child instanceof TFile) {
+        const content = await this.plugin.app.vault.read(child);
+        await this.plugin.app.vault.create(`${dstPath}/${child.name}`, content);
+      } else if (child instanceof TFolder) {
+        await this.copyFolder(child, `${dstPath}/${child.name}`);
+      }
+    }
   }
 }

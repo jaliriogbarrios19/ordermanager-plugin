@@ -98,6 +98,7 @@ export interface OrderManagerSettings {
   tasasCambio: Record<string, number>;
   bcvPrice: number;
   fechaTasas: string;
+  onboardingComplete: boolean;
   categoriasIngreso: string[];
   categoriasEgreso: string[];
   mediosPago: string[];
@@ -161,6 +162,7 @@ export const DEFAULT_SETTINGS: OrderManagerSettings = {
   tasasCambio: { "USD": 1 },
   bcvPrice: 0,
   fechaTasas: "",
+  onboardingComplete: false,
   categoriasIngreso: ["Ventas", "Servicios", "Consultoría", "Inversiones", "Otros ingresos"],
   categoriasEgreso: ["Insumos", "Servicios", "Impuestos", "Salarios", "Alquiler", "Servicios públicos", "Marketing", "Otros egresos"],
   mediosPago: ["Efectivo", "Transferencia", "Tarjeta de crédito", "Tarjeta de débito", "Cheque", "Billetera digital"],

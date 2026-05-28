@@ -204,7 +204,7 @@ export class DashboardView extends ItemView {
       const maxVal = Math.max(...data.map((d) => Math.max(d.ing, d.egr)), 1);
       const w = 360, h = 140, pad = 30, barW = 16, gap = 36;
 
-      const svg = chartEl.createEl("svg") as unknown as SVGElement;
+      const svg = (chartEl as any).createEl("svg") as SVGElement;
       svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
       (svg as unknown as HTMLElement).style.cssText = "width:100%;max-width:400px;margin-top:8px;";
 
@@ -304,6 +304,31 @@ export class DashboardView extends ItemView {
         alertDiv.createSpan({
           text: lowStock.map((p) => `${p.data.nombre} (${p.data.stock})`).join(", "),
         });
+      }
+
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      const en7dias = new Date(hoy);
+      en7dias.setDate(en7dias.getDate() + 7);
+      const upcoming = deudas.filter((d) => {
+        if (d.data.estado === "pagada" || !d.data.fecha_vencimiento) return false;
+        const v = new Date(d.data.fecha_vencimiento + "T00:00:00");
+        return v >= hoy && v <= en7dias;
+      }).sort((a, b) => a.data.fecha_vencimiento.localeCompare(b.data.fecha_vencimiento));
+
+      if (upcoming.length > 0) {
+        const dueDiv = resumenEl.createDiv();
+        dueDiv.style.cssText =
+          "margin-top:8px;padding:8px 12px;background:rgba(var(--color-yellow-rgb),0.1);border:1px solid var(--color-yellow);border-radius:4px;";
+        dueDiv.createEl("strong", { text: `📅 Próximos vencimientos (${upcoming.length}):` });
+        const dueList = dueDiv.createEl("div");
+        dueList.style.cssText = "margin-top:4px;font-size:0.85em;";
+        for (const d of upcoming) {
+          const row = dueList.createDiv();
+          row.createSpan({ text: `${d.data.fecha_vencimiento} — ` });
+          row.createSpan({ text: `${d.data.clase === "a_favor" ? "Cobrar" : "Pagar"}: ${d.data.descripcion || "Deuda"} ` });
+          row.createSpan({ text: formatCurrency((d.data.monto_total || 0) - (d.data.monto_pagado || 0), d.data.moneda) });
+        }
       }
 
       lastTransEl.empty();
