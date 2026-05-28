@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, WorkspaceLeaf, normalizePath } from "obsidian";
 import type OrderManagerPlugin from "../main";
 import type { ClienteData } from "../types";
 import { ClienteModal } from "../modals/cliente-modal";
@@ -105,6 +105,54 @@ export class ClientesView extends ItemView {
         row.createEl("td", { text: d.categoria || "—" });
 
         const actionTd = row.createEl("td");
+        actionTd.style.cssText = "display:flex;gap:4px;";
+
+        const facturaBtn = actionTd.createEl("button", { text: "📄" });
+        facturaBtn.title = "Generar factura";
+        facturaBtn.style.cssText =
+          "padding:2px 6px;border:none;border-radius:4px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;font-size:0.85em;";
+        facturaBtn.onclick = async (e: MouseEvent) => {
+          e.stopPropagation();
+          const allTrans = await this.plugin.dataManager.getTransacciones();
+          const clientTrans = allTrans.filter((t) => t.data.cliente === d.nombre);
+          const totalIngresos = clientTrans.filter((t) => t.data.clase === "ingreso").reduce((s, t) => s + (t.data.monto || 0), 0);
+          const totalEgresos = clientTrans.filter((t) => t.data.clase === "egreso").reduce((s, t) => s + (t.data.monto || 0), 0);
+          const deudas = await this.plugin.dataManager.getDeudas();
+          const clientDeudas = deudas.filter((t) => t.data.cliente === d.nombre && t.data.estado !== "pagada");
+
+          let content = `---\ntipo: factura\ncliente: ${d.nombre}\nfecha: ${new Date().toISOString().split("T")[0]}\n---\n\n`;
+          content += `# Factura — ${d.nombre}\n\n`;
+          content += `| Campo | Valor |\n|-------|-------|\n`;
+          content += `| RUC | ${d.ruc || "—"} |\n`;
+          content += `| Email | ${d.email || "—"} |\n`;
+          content += `| Teléfono | ${d.telefono || "—"} |\n`;
+          content += `| Dirección | ${d.direccion || "—"} |\n\n`;
+          content += `## Transacciones\n\n`;
+          if (clientTrans.length > 0) {
+            content += `| Fecha | Tipo | Monto | Moneda | Descripción |\n|-------|------|-------|--------|-------------|\n`;
+            for (const t of clientTrans) {
+              content += `| ${t.data.fecha} | ${t.data.clase === "ingreso" ? "Ingreso" : "Egreso"} | ${t.data.monto} | ${t.data.moneda} | ${t.data.descripcion || "—"} |\n`;
+            }
+            content += `\n**Total ingresos**: ${totalIngresos}\n**Total egresos**: ${totalEgresos}\n`;
+          }
+          if (clientDeudas.length > 0) {
+            content += `\n## Deudas pendientes\n\n`;
+            content += `| Descripción | Total | Pagado | Restante | Vencimiento |\n|-------------|-------|--------|----------|-------------|\n`;
+            for (const t of clientDeudas) {
+              content += `| ${t.data.descripcion || "—"} | ${t.data.monto_total} | ${t.data.monto_pagado} | ${(t.data.monto_total || 0) - (t.data.monto_pagado || 0)} | ${t.data.fecha_vencimiento || "—"} |\n`;
+            }
+          }
+          if (clientTrans.length === 0 && clientDeudas.length === 0) {
+            content += `Sin transacciones registradas.\n`;
+          }
+
+          const folder = normalizePath(`${this.plugin.settings.baseFolder}/${this.plugin.settings.libroActivo}/Facturas`);
+          await this.plugin.dataManager.ensureFolder(folder);
+          const filename = `factura-${d.nombre.replace(/[\\/:*?"<>|]/g, "-")}-${new Date().toISOString().split("T")[0]}`;
+          const file = await this.plugin.app.vault.create(normalizePath(`${folder}/${filename}.md`), content);
+          this.plugin.app.workspace.getLeaf("tab").openFile(file);
+        };
+
         const delBtn = actionTd.createEl("button", { text: "×" });
         delBtn.style.cssText =
           "padding:2px 8px;border:none;border-radius:4px;background:var(--color-red);color:#fff;cursor:pointer;font-size:1em;line-height:1;";

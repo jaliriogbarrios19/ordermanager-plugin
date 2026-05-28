@@ -286,7 +286,14 @@ export class DataManager {
     const results = await this.readAllFrontmatter(this.basePath("Inventario"));
     return results
       .filter((r) => r.data.tipo === "producto")
-      .map((r) => ({ file: r.file, data: r.data as unknown as ProductoData }));
+      .map((r) => {
+        const data = r.data as unknown as ProductoData;
+        if (typeof data.receta === "string") {
+          try { data.receta = JSON.parse(data.receta as string); } catch { data.receta = []; }
+        }
+        if (!data.receta) data.receta = [];
+        return { file: r.file, data };
+      });
   }
 
   async saveProducto(
@@ -302,6 +309,9 @@ export class DataManager {
         tipo: "producto",
         updated: nowStr,
       };
+      if (Array.isArray(updated.receta)) {
+        updated.receta = JSON.stringify(updated.receta);
+      }
       await this.updateFile(existingFile, updated, data.nombre ? `# ${data.nombre}\n` : undefined);
       return existingFile;
     }

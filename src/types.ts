@@ -80,6 +80,17 @@ export interface ProductoData {
   moneda: string;
   created: string;
   updated: string;
+  margen_ganancia: number;
+  porcion: number;
+  receta: InsumoReceta[];
+}
+
+export interface InsumoReceta {
+  nombre: string;
+  cantidad: number;
+  unidad: string;
+  costo_unitario: number;
+  aplicar_margen: boolean;
 }
 
 export type EntidadData =

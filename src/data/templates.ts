@@ -99,6 +99,9 @@ export function productoTemplate(data: Partial<ProductoData>): string {
     moneda: data.moneda || "USD",
     created: data.created || now(),
     updated: data.updated || now(),
+    margen_ganancia: data.margen_ganancia ?? 30,
+    porcion: data.porcion ?? 1,
+    receta: JSON.stringify(data.receta || []),
   };
 
   return `---\n${stringifyYaml(fm)}\n---\n# ${data.nombre || "Nuevo Producto"}\n`;

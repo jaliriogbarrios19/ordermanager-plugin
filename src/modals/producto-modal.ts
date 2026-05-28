@@ -2,6 +2,7 @@ import { App, Modal, Notice, Setting, DropdownComponent } from "obsidian";
 import type OrderManagerPlugin from "../main";
 import type { ProductoData } from "../types";
 import { now } from "../utils/date";
+import { RecetaModal } from "./receta-modal";
 
 export class ProductoModal extends Modal {
   plugin: OrderManagerPlugin;
@@ -125,6 +126,27 @@ export class ProductoModal extends Modal {
         dd.setValue(this.data.proveedor || "");
         dd.onChange((v) => (this.data.proveedor = v));
       });
+
+    if (this.existingFile) {
+      const recetaBtn = form.createDiv();
+      recetaBtn.style.cssText = "margin-bottom:12px;";
+      recetaBtn.createEl("button", { text: "📐 Estructura de costo", cls: "" }).onclick = () => {
+        new RecetaModal(this.app, this.plugin, this.existingFile ? {
+          ...this.data as ProductoData,
+          receta: (this.data as any).receta || [],
+        } : this.data as ProductoData, this.existingFile!, async () => {
+          const prods = await this.plugin.dataManager.getProductos();
+          const updated = prods.find((p) => p.file.path === this.existingFile!.path);
+          if (updated) {
+            this.data.precio_costo = updated.data.precio_costo;
+            this.data.precio_venta = updated.data.precio_venta;
+            this.data.margen_ganancia = updated.data.margen_ganancia;
+            this.data.porcion = updated.data.porcion;
+            (this.data as any).receta = updated.data.receta;
+          }
+        }).open();
+      };
+    }
 
     const actions = contentEl.createDiv({ cls: "ordermanager-form-actions" });
     actions.createEl("button", { text: "Cancelar", cls: "secondary" }).onclick = () =>

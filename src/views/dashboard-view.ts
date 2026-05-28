@@ -177,41 +177,56 @@ export class DashboardView extends ItemView {
     const lastTransEl = container.createDiv();
     const topProductsEl = container.createDiv();
 
-    const renderChart = (rRates: Record<string, number>, rRef: string) => {
+    const renderChart = (rRates: Record<string, number>, rRef: string, desde: string, hasta: string) => {
+      const diffDays = Math.ceil((new Date(hasta + "T00:00:00").getTime() - new Date(desde + "T00:00:00").getTime()) / 86400000);
+      if (diffDays <= 1) return;
+
+      const buckets: { label: string; start: string; end: string }[] = [];
+      if (diffDays <= 31) {
+        for (let d = new Date(desde + "T00:00:00"); d <= new Date(hasta + "T00:00:00"); d.setDate(d.getDate() + 7)) {
+          const s = d.toISOString().split("T")[0];
+          const e = new Date(d);
+          e.setDate(e.getDate() + 6);
+          const eStr = e > new Date(hasta + "T00:00:00") ? hasta : e.toISOString().split("T")[0];
+          buckets.push({ label: d.toLocaleDateString("es", { day: "numeric", month: "short" }), start: s, end: eStr });
+        }
+      } else {
+        const start = new Date(desde + "T00:00:00");
+        const end = new Date(hasta + "T00:00:00");
+        while (start <= end) {
+          const mStart = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-01`;
+          const mEnd = new Date(start.getFullYear(), start.getMonth() + 1, 0).toISOString().split("T")[0];
+          const actualEnd = mEnd > hasta ? hasta : mEnd;
+          buckets.push({ label: start.toLocaleDateString("es", { month: "short" }), start: mStart, end: actualEnd });
+          start.setMonth(start.getMonth() + 1);
+        }
+      }
+      if (buckets.length < 2) return;
+
       const chartEl = resumenEl.createDiv();
       chartEl.style.cssText = "margin:16px 0;";
-      chartEl.createEl("div", { cls: "ordermanager-section-title", text: "Últimos 6 meses" });
+      chartEl.createEl("div", { cls: "ordermanager-section-title", text: periodLabel });
 
-      const months: { label: string; start: string; end: string }[] = [];
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date();
-        d.setMonth(d.getMonth() - i);
-        months.push({
-          label: d.toLocaleDateString("es", { month: "short" }),
-          start: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`,
-          end: new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split("T")[0],
-        });
-      }
-
-      const data = months.map((m) => {
+      const data = buckets.map((b) => {
         const ing = transacciones
-          .filter((t) => t.data.clase === "ingreso" && t.data.fecha >= m.start && t.data.fecha <= m.end)
-          .reduce((s, t) => s + convertir(t.data.monto || 0, t.data.moneda || "USD", rRates, rRef), 0);
+          .filter((t) => t.data.clase === "ingreso" && t.data.fecha >= b.start && t.data.fecha <= b.end)
+          .reduce((s, t) => s + (t.data.monto_referencia || convertir(t.data.monto || 0, t.data.moneda || "USD", rRates, rRef)), 0);
         const egr = transacciones
-          .filter((t) => t.data.clase === "egreso" && t.data.fecha >= m.start && t.data.fecha <= m.end)
-          .reduce((s, t) => s + convertir(t.data.monto || 0, t.data.moneda || "USD", rRates, rRef), 0);
-        return { label: m.label, ing, egr };
+          .filter((t) => t.data.clase === "egreso" && t.data.fecha >= b.start && t.data.fecha <= b.end)
+          .reduce((s, t) => s + (t.data.monto_referencia || convertir(t.data.monto || 0, t.data.moneda || "USD", rRates, rRef)), 0);
+        return { label: b.label, ing, egr };
       });
 
       const maxVal = Math.max(...data.map((d) => Math.max(d.ing, d.egr)), 1);
-      const w = 360, h = 140, pad = 30, barW = 16, gap = 36;
+      const w = 360, h = 140, pad = 40, barW = Math.max(8, Math.min(16, Math.floor((w - pad * 2) / (buckets.length * 2.5))));
+      const gap = Math.floor((w - pad * 2 - barW * 2 * buckets.length) / buckets.length);
 
       const svg = (chartEl as any).createEl("svg") as SVGElement;
       svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
       (svg as unknown as HTMLElement).style.cssText = "width:100%;max-width:400px;margin-top:8px;";
 
       data.forEach((d, i) => {
-        const x = pad + i * gap;
+        const x = pad + i * (barW * 2 + gap);
         const ingH = (d.ing / maxVal) * (h - pad - 10);
         const egrH = (d.egr / maxVal) * (h - pad - 10);
 
@@ -369,7 +384,7 @@ export class DashboardView extends ItemView {
       }
 
       topProductsEl.empty();
-      renderChart(rates, ref);
+      renderChart(rates, ref, desde, hasta);
       topProductsEl.empty();
       const productSales = new Map<string, { count: number; total: number }>();
       for (const t of transacciones) {
