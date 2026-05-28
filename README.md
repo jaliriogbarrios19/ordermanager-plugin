@@ -47,7 +47,7 @@ Buscá "OrderManager" en la lista de plugins comunitarios de Obsidian.
 ## Desarrollo / Development
 
 ```bash
-git clone https://github.com/tuusuario/ordermanager-plugin
+git clone https://github.com/jaliriogbarrios19/ordermanager-plugin
 cd ordermanager-plugin
 npm install
 npm run build

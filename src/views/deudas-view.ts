@@ -236,6 +236,17 @@ export class DeudasView extends ItemView {
               { ...data, monto_pagado: newPagado, estado: updated },
               d.file
             );
+            await this.plugin.dataManager.saveTransaccion({
+              clase: "ingreso",
+              monto: parsed,
+              moneda: data.moneda,
+              fecha: new Date().toISOString().split("T")[0],
+              categoria: "Cobro de deuda",
+              cliente: data.cliente,
+              proveedor: data.proveedor,
+              descripcion: `Abono: ${data.descripcion || "Deuda"}`,
+              estado: "confirmado",
+            });
             this.refresh();
           };
         }
