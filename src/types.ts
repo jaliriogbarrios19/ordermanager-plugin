@@ -92,8 +92,8 @@ export interface OrderManagerSettings {
   baseFolder: string;
   defaultCurrency: string;
   language: string;
-  negocios: string[];
-  negocioActivo: string;
+  libros: string[];
+  libroActivo: string;
   tasaReferencia: string;
   tasasCambio: Record<string, number>;
   bcvPrice: number;
@@ -156,8 +156,8 @@ export const DEFAULT_SETTINGS: OrderManagerSettings = {
   baseFolder: "OrderManager",
   defaultCurrency: "USD",
   language: "es",
-  negocios: ["Principal"],
-  negocioActivo: "Principal",
+  libros: ["Principal"],
+  libroActivo: "Principal",
   tasaReferencia: "USD",
   tasasCambio: { "USD": 1 },
   bcvPrice: 0,

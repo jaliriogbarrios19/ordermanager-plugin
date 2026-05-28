@@ -270,20 +270,20 @@ export class OrderManagerSettingTab extends PluginSettingTab {
       });
     }
 
-    containerEl.createEl("h3", { text: t("businesses") });
+    containerEl.createEl("h3", { text: t("books") });
     containerEl.createEl("p", {
-      text: t("businessesDesc"),
+      text: t("booksDesc"),
       cls: "setting-item-description",
     });
 
     this.buildTagList(
       containerEl,
-      this.plugin.settings.negocios,
+      this.plugin.settings.libros,
       async (values) => {
         if (values.length === 0) return;
-        this.plugin.settings.negocios = values;
-        if (!values.includes(this.plugin.settings.negocioActivo)) {
-          this.plugin.settings.negocioActivo = values[0];
+        this.plugin.settings.libros = values;
+        if (!values.includes(this.plugin.settings.libroActivo)) {
+          this.plugin.settings.libroActivo = values[0];
         }
         await this.plugin.saveSettings();
         this.plugin.dataManager.updateSettings(this.plugin.settings);
@@ -293,20 +293,20 @@ export class OrderManagerSettingTab extends PluginSettingTab {
     const dupRow = containerEl.createDiv();
     dupRow.style.cssText = "display:flex;gap:8px;align-items:center;margin-bottom:12px;";
     const dupSelect = dupRow.createEl("select");
-    for (const n of this.plugin.settings.negocios) {
+    for (const n of this.plugin.settings.libros) {
       dupSelect.createEl("option", { text: n });
     }
-    const dupBtn = dupRow.createEl("button", { text: "Duplicar negocio" });
+    const dupBtn = dupRow.createEl("button", { text: "Duplicar libro" });
     dupBtn.style.cssText =
       "padding:6px 14px;border:none;border-radius:4px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;";
     dupBtn.onclick = async () => {
       const source = dupSelect.value;
       const target = `${source} (copia)`;
-      if (this.plugin.settings.negocios.includes(target)) {
-        new Notice("Ya existe un negocio con ese nombre.");
+      if (this.plugin.settings.libros.includes(target)) {
+        new Notice("Ya existe un libro con ese nombre.");
         return;
       }
-      this.plugin.settings.negocios.push(target);
+      this.plugin.settings.libros.push(target);
       await this.plugin.saveSettings();
       const srcPath = normalizePath(`${this.plugin.settings.baseFolder}/${source}`);
       const dstPath = normalizePath(`${this.plugin.settings.baseFolder}/${target}`);
@@ -314,7 +314,7 @@ export class OrderManagerSettingTab extends PluginSettingTab {
       if (srcFolder instanceof TFolder) {
         await this.copyFolder(srcFolder, dstPath);
       }
-      new Notice(`Negocio "${target}" duplicado.`);
+      new Notice(`Libro "${target}" duplicado.`);
       this.display();
     };
 

@@ -76,21 +76,21 @@ export class DashboardView extends ItemView {
       0
     );
 
-    const negocioActivo = this.plugin.settings.negocioActivo;
+    const libroActivo = this.plugin.settings.libroActivo;
 
-    container.createEl("h2", { text: `${i18n("dashboard")} — ${negocioActivo}` });
+    container.createEl("h2", { text: `${i18n("dashboard")} — ${libroActivo}` });
 
-    if (this.plugin.settings.negocios.length > 1) {
+    if (this.plugin.settings.libros.length > 1) {
       const switchRow = container.createDiv({ cls: "ordermanager-toolbar" });
-      switchRow.createEl("span", { text: `${i18n("business")}:` }).style.cssText =
+      switchRow.createEl("span", { text: `${i18n("book")}:` }).style.cssText =
         "font-size:0.85em;color:var(--text-muted);";
       const selector = switchRow.createEl("select");
-      for (const n of this.plugin.settings.negocios) {
+      for (const n of this.plugin.settings.libros) {
         const opt = selector.createEl("option", { text: n });
-        if (n === negocioActivo) opt.selected = true;
+        if (n === libroActivo) opt.selected = true;
       }
       selector.onchange = async () => {
-        this.plugin.settings.negocioActivo = selector.value;
+        this.plugin.settings.libroActivo = selector.value;
         await this.plugin.saveSettings();
         this.plugin.dataManager.updateSettings(this.plugin.settings);
         await this.plugin.dataManager.ensureBaseFolders();

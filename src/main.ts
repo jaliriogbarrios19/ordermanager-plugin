@@ -182,7 +182,13 @@ export default class OrderManagerPlugin extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const data = await this.loadData();
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+    if ((data as any)?.negocios && !this.settings.libros.length) {
+      this.settings.libros = (data as any).negocios;
+      this.settings.libroActivo = (data as any).negocioActivo || (data as any).negocios[0];
+      await this.saveSettings();
+    }
   }
 
   async saveSettings() {
@@ -249,7 +255,7 @@ class OnboardingModal extends Modal {
     contentEl.createEl("p", { text: "Tu plugin de contabilidad para emprendimientos." });
     contentEl.createEl("h4", { text: "Para empezar:" });
     const list = contentEl.createEl("ol");
-    list.createEl("li", { text: "Andá a Settings → OrderManager → Negocios y creá el tuyo (ej: 'Mi Tienda')." });
+    list.createEl("li", { text: "Andá a Settings → OrderManager → Libros y creá el tuyo (ej: 'Personal')." });
     list.createEl("li", { text: "En Tasas de cambio, agregá Dólar BCV y USDT, y clickeá Actualizar tasas." });
     list.createEl("li", { text: "Usá el Dashboard para ver tus finanzas y crear transacciones." });
     list.createEl("li", { text: "Ctrl+P → 'OrderManager' para ver todos los comandos." });

@@ -25,7 +25,7 @@ export class DataManager {
   }
 
   private basePath(subfolder: string): string {
-    return normalizePath(`${this.settings.baseFolder}/${this.settings.negocioActivo}/${subfolder}`);
+    return normalizePath(`${this.settings.baseFolder}/${this.settings.libroActivo}/${subfolder}`);
   }
 
   async ensureFolder(path: string): Promise<TFolder> {
@@ -36,7 +36,7 @@ export class DataManager {
   }
 
   async ensureBaseFolders(): Promise<void> {
-    const base = normalizePath(`${this.settings.baseFolder}/${this.settings.negocioActivo}`);
+    const base = normalizePath(`${this.settings.baseFolder}/${this.settings.libroActivo}`);
     await this.ensureFolder(base);
     await this.ensureFolder(`${base}/Clientes`);
     await this.ensureFolder(`${base}/Proveedores`);
