@@ -1,10 +1,10 @@
 {
   "id": "ordermanager",
-  "name": "OrderManager",
+  "name": "Order Manager",
   "version": "1.0.0",
   "minAppVersion": "0.15.0",
   "description": "Gestión contable para emprendimientos: clientes, proveedores, inventario, transacciones y deudas.",
-  "author": "",
-  "authorUrl": "",
+  "author": "jaliriogbarrios19",
+  "authorUrl": "https://github.com/jaliriogbarrios19",
   "isDesktopOnly": false
 }
