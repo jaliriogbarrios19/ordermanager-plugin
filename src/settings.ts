@@ -71,7 +71,7 @@ export class OrderManagerSettingTab extends PluginSettingTab {
       .setName("Moneda de referencia")
       .setDesc("Todos los balances se convierten a esta moneda")
       .addDropdown((dd: DropdownComponent) => {
-        for (const s of MONEDA_SOURCES) dd.addOption(s.code, `${s.label} (${s.code})`);
+        for (const s of MONEDA_SOURCES) dd.addOption(s.code, s.label);
         dd.setValue(this.plugin.settings.tasaReferencia || "USD");
         dd.onChange(async (v) => {
           this.plugin.settings.tasaReferencia = v;
@@ -102,9 +102,6 @@ export class OrderManagerSettingTab extends PluginSettingTab {
         const source = MONEDA_SOURCES.find((s) => s.code === code);
         const label = source?.label || code;
         let displayFactor = source?.displayFactor ?? 1;
-        if (displayFactor === 0) {
-          displayFactor = this.plugin.settings.bcvPrice || 1;
-        }
         const displayVal = valor * displayFactor;
 
         const tag = tagsWrapper.createDiv();
@@ -181,10 +178,6 @@ export class OrderManagerSettingTab extends PluginSettingTab {
           item.style.cssText =
             "padding:6px 10px;cursor:pointer;font-size:0.85em;";
           item.createSpan({ text: s.label });
-          const codeSpan = item.createSpan({
-            text: ` (${s.code})`,
-          });
-          codeSpan.style.cssText = "color:var(--text-muted);font-size:0.8em;";
           item.onmousedown = (e: MouseEvent) => {
             e.preventDefault();
             if (!this.plugin.settings.tasasCambio[s.code]) {

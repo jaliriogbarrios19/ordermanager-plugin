@@ -38,15 +38,15 @@ async function fetchDolarApi(rates: ExchangeRates, codes: string[]): Promise<voi
     if (!price || price <= 0) continue;
 
     if (fuente === "oficial" && nombre === "Dólar") {
-      const bcvValue = { price };
       rates["_BCV_PRICE"] = price;
-      if (codes.includes("VES_BCV")) rates["VES_BCV"] = 1 / price;
+      if (codes.includes("VES_BCV")) rates["VES_BCV"] = 1;
       console.log("[OrderManager] BCV:", price);
     }
 
     if (codes.includes("USDT") && (fuente === "paralelo" || nombre === "Paralelo" || nombre.includes("paralelo"))) {
-      if (rates["VES_BCV"] && rates["VES_BCV"] > 0) {
-        rates["USDT"] = price * rates["VES_BCV"];
+      const bcvPrice = rates["_BCV_PRICE"];
+      if (bcvPrice && bcvPrice > 0) {
+        rates["USDT"] = price / bcvPrice;
       } else {
         rates["USDT"] = 1;
       }
@@ -79,9 +79,9 @@ async function fetchBinance(rates: ExchangeRates, codes: string[]): Promise<void
           if (sym === "USDTVES") {
             const vesPerUsdt = price;
             if (codes.includes("USDT")) {
-              const bcvRate = rates["VES_BCV"];
-              if (bcvRate && bcvRate > 0) {
-                rates["USDT"] = vesPerUsdt * bcvRate;
+              const bcvPrice = rates["_BCV_PRICE"];
+              if (bcvPrice && bcvPrice > 0) {
+                rates["USDT"] = vesPerUsdt / bcvPrice;
               } else {
                 rates["USDT"] = 1;
               }
@@ -148,7 +148,7 @@ export function convertir(
 ): number {
   const rate = rates[moneda];
   if (!rate || rate === 0) return monto;
-  return (monto / rate) * (rates[referencia] || 1);
+  return (monto * rate) / (rates[referencia] || 1);
 }
 
 export function rebaseRates(

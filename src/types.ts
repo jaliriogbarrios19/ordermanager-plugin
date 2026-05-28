@@ -126,7 +126,7 @@ export interface MonedaSource {
 }
 
 export const MONEDA_SOURCES: MonedaSource[] = [
-  { label: "Dólar BCV", code: "VES_BCV", source: "dolarapi", displayFactor: 0 },
+  { label: "Dólar BCV", code: "VES_BCV", source: "dolarapi", displayFactor: 1 },
   { label: "USDT", code: "USDT", source: "binance", displayFactor: 1 },
   { label: "Bolívar (VES)", code: "VES", source: "fiat", displayFactor: 1 },
   { label: "Euro BCV", code: "EUR", source: "dolarapi", displayFactor: 1 },
