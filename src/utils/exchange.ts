@@ -11,15 +11,11 @@ function getSource(code: string): MonedaSource | undefined {
 }
 
 async function apiGet(url: string): Promise<unknown> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeout);
-    if (!res.ok) return null;
-    return await res.json();
+    const res = await requestUrl({ url, method: "GET" });
+    if (res.status !== 200) return null;
+    return res.json;
   } catch (e) {
-    clearTimeout(timeout);
     console.error(`[OrderManager] API error: ${url}`, e);
     return null;
   }

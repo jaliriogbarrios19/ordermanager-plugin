@@ -271,8 +271,12 @@ export class DashboardView extends ItemView {
 
       const leyenda = chartEl.createDiv();
       leyenda.style.cssText = "display:flex;gap:16px;font-size:0.75em;color:var(--text-muted);margin-top:4px;";
-      leyenda.createEl("span").innerHTML = '<span style="color:var(--color-green);">■</span> Ingresos';
-      leyenda.createEl("span").innerHTML = '<span style="color:var(--color-red);">■</span> Egresos';
+      const ingLeg = leyenda.createEl("span");
+      ingLeg.createSpan({ text: "■", attr: { style: "color:var(--color-green);" } });
+      ingLeg.createSpan({ text: " Ingresos" });
+      const egrLeg = leyenda.createEl("span");
+      egrLeg.createSpan({ text: "■", attr: { style: "color:var(--color-red);" } });
+      egrLeg.createSpan({ text: " Egresos" });
     };
 
     const renderPeriodData = () => {
