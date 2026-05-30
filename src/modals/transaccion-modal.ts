@@ -294,6 +294,35 @@ export class TransaccionModal extends Modal {
     const compInfo = compRow.createDiv({ cls: "setting-item-info" });
     compInfo.createDiv({ cls: "setting-item-name", text: t("receipt") });
     const compControl = compRow.createDiv({ cls: "setting-item-control" });
+    const compPreview = form.createDiv();
+    compPreview.style.cssText = "margin:4px 0 12px 0;";
+
+    const renderPreview = () => {
+      compPreview.empty();
+      if (!this.data.comprobante) return;
+      const file = this.app.vault.getAbstractFileByPath(this.data.comprobante);
+      if (!(file instanceof TFile)) return;
+      const resourceUrl = this.app.vault.getResourcePath(file);
+      const ext = this.data.comprobante.split(".").pop()?.toLowerCase() || "";
+
+      if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(ext)) {
+        const img = compPreview.createEl("img");
+        img.src = resourceUrl;
+        img.style.cssText =
+          "max-width:100%;max-height:300px;margin-top:8px;border-radius:4px;border:1px solid var(--background-modifier-border);cursor:pointer;";
+        img.setAttr("title", "Click para abrir en tamaño completo");
+        img.onclick = () => {
+          this.app.workspace.openLinkText(this.data.comprobante!, "", false);
+        };
+      } else if (ext === "pdf") {
+        const pdfBtn = compPreview.createEl("button", { text: "Ver PDF" });
+        pdfBtn.style.cssText =
+          "margin-top:8px;padding:6px 14px;border:none;border-radius:4px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;font-size:0.85em;font-weight:500;";
+        pdfBtn.onclick = () => {
+          this.app.workspace.openLinkText(this.data.comprobante!, "", false);
+        };
+      }
+    };
 
     const renderComprobante = () => {
       compControl.empty();
@@ -325,6 +354,7 @@ export class TransaccionModal extends Modal {
         attachBtn.style.cssText = "padding:4px 8px;font-size:0.85em;";
         attachBtn.onclick = () => pickFile();
       }
+      renderPreview();
     };
 
     const pickFile = () => {

@@ -396,7 +396,11 @@ export class DashboardView extends ItemView {
           if (d.comprobante) {
             const icon = compTd.createEl("span", { text: "📎" });
             icon.style.cursor = "pointer";
-            icon.setAttr("title", d.comprobante);
+            icon.setAttr("title", d.comprobante + " — Click para abrir");
+            icon.onclick = (e: MouseEvent) => {
+              e.stopPropagation();
+              this.app.workspace.openLinkText(d.comprobante, "", false);
+            };
           } else {
             compTd.createEl("span", { text: "—" });
           }
