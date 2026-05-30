@@ -50,6 +50,7 @@ export function transaccionTemplate(data: Partial<TransaccionData>): string {
     medio_pago: data.medio_pago || "",
     comprobante: data.comprobante || "",
     estado: data.estado || "confirmado",
+    deuda_ref: data.deuda_ref || "",
     created: data.created || now(),
     updated: data.updated || now(),
     recurrente: data.recurrente || "",
@@ -65,6 +66,7 @@ export function deudaTemplate(data: Partial<DeudaData>): string {
   const fm: Record<string, unknown> = {
     tipo: "deuda",
     clase: data.clase || "a_favor",
+    deuda_tipo: data.deuda_tipo || "dinero",
     monto_total: data.monto_total || 0,
     monto_pagado: data.monto_pagado || 0,
     moneda: data.moneda || "USD",
@@ -77,6 +79,9 @@ export function deudaTemplate(data: Partial<DeudaData>): string {
     cuotas: data.cuotas || 1,
     cuotas_pagadas: data.cuotas_pagadas || 0,
     tasa_interes: data.tasa_interes || 0,
+    producto: data.producto || "",
+    cantidad_producto: data.cantidad_producto || 0,
+    registrar_en_inventario: data.registrar_en_inventario || false,
     created: data.created || now(),
     updated: data.updated || now(),
   };

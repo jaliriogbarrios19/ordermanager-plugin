@@ -1,7 +1,8 @@
 import { App, Modal, Notice, Setting, DropdownComponent } from "obsidian";
 import type OrderManagerPlugin from "../main";
-import type { DeudaData, DeudaClase, DeudaEstado } from "../types";
+import type { DeudaData, DeudaClase, DeudaEstado, DeudaTipo } from "../types";
 import { today, now } from "../utils/date";
+import { t } from "../i18n";
 
 export class DeudaModal extends Modal {
   plugin: OrderManagerPlugin;
@@ -10,6 +11,7 @@ export class DeudaModal extends Modal {
   onSubmit: () => void;
   clientes: Array<{ nombre: string }> = [];
   proveedores: Array<{ nombre: string }> = [];
+  productos: Array<{ nombre: string }> = [];
 
   constructor(
     app: App,
@@ -27,6 +29,7 @@ export class DeudaModal extends Modal {
       : {
           tipo: "deuda",
           clase: "a_favor",
+          deuda_tipo: "dinero",
           monto_total: 0,
           monto_pagado: 0,
           moneda: plugin.settings.defaultCurrency,
@@ -39,6 +42,9 @@ export class DeudaModal extends Modal {
           cuotas: 1,
           cuotas_pagadas: 0,
           tasa_interes: 0,
+          producto: "",
+          cantidad_producto: 0,
+          registrar_en_inventario: false,
           created: now(),
           updated: now(),
         };
@@ -50,20 +56,23 @@ export class DeudaModal extends Modal {
     contentEl.addClass("ordermanager-modal");
 
     contentEl.createEl("h3", {
-      text: this.existingFile ? "Editar Deuda" : "Nueva Deuda",
+      text: this.existingFile ? t("editDebt") : t("newDebtTitle"),
     });
 
     this.clientes = (await this.plugin.dataManager.getClientes()).map((c) => c.data);
     this.proveedores = (await this.plugin.dataManager.getProveedores()).map((p) => p.data);
+    this.productos = (await this.plugin.dataManager.getProductos()).map((p) => p.data);
 
     const form = contentEl.createDiv();
-    let contactSettingEl: HTMLElement;
+    let contactContainer: HTMLElement;
+    let detailContainer: HTMLElement;
+    let inventoryCheckContainer: HTMLElement;
 
     const buildContactDropdown = (container: HTMLElement) => {
       container.empty();
       if (this.data.clase === "a_favor") {
         new Setting(container)
-          .setName("Cliente (deudor)")
+          .setName(t("clientDebtor"))
           .addDropdown((dd: DropdownComponent) => {
             dd.addOption("", "—");
             for (const c of this.clientes) {
@@ -75,7 +84,7 @@ export class DeudaModal extends Modal {
           });
       } else {
         new Setting(container)
-          .setName("Proveedor (acreedor)")
+          .setName(t("supplierCreditor"))
           .addDropdown((dd: DropdownComponent) => {
             dd.addOption("", "—");
             for (const p of this.proveedores) {
@@ -88,112 +97,182 @@ export class DeudaModal extends Modal {
       }
     };
 
+    const buildDetailSection = () => {
+      detailContainer.empty();
+      const esDinero = this.data.deuda_tipo !== "producto";
+
+      if (esDinero) {
+        const montoRow = detailContainer.createDiv({ cls: "ordermanager-form-row" });
+        new Setting(montoRow.createDiv()).setName(t("totalAmount")).addText((text) => {
+          text.inputEl.type = "number";
+          text.inputEl.step = "0.01";
+          text.setValue(String(this.data.monto_total || 0)).onChange((v) => {
+            this.data.monto_total = parseFloat(v) || 0;
+          });
+        });
+        new Setting(montoRow.createDiv()).setName(t("paidAmount")).addText((text) => {
+          text.inputEl.type = "number";
+          text.inputEl.step = "0.01";
+          text.setValue(String(this.data.monto_pagado || 0)).onChange((v) => {
+            this.data.monto_pagado = parseFloat(v) || 0;
+          });
+        });
+
+        new Setting(detailContainer)
+          .setName(t("currency"))
+          .addText((text) =>
+            text
+              .setValue(this.data.moneda || this.plugin.settings.defaultCurrency)
+              .onChange((v) => (this.data.moneda = v))
+          );
+
+        const cuotasRow = detailContainer.createDiv({ cls: "ordermanager-form-row" });
+        new Setting(cuotasRow.createDiv()).setName(t("installments")).addText((text) => {
+          text.inputEl.type = "number";
+          text.setValue(String(this.data.cuotas || 1)).onChange((v) => {
+            this.data.cuotas = parseInt(v) || 1;
+          });
+        });
+        new Setting(cuotasRow.createDiv()).setName(t("installmentsPaid")).addText((text) => {
+          text.inputEl.type = "number";
+          text.setValue(String(this.data.cuotas_pagadas || 0)).onChange((v) => {
+            this.data.cuotas_pagadas = parseInt(v) || 0;
+          });
+        });
+
+        new Setting(detailContainer).setName(t("interestRate")).addText((text) => {
+          text.inputEl.type = "number";
+          text.inputEl.step = "0.01";
+          text.setValue(String(this.data.tasa_interes || 0)).onChange((v) => {
+            this.data.tasa_interes = parseFloat(v) || 0;
+          });
+        });
+      } else {
+        new Setting(detailContainer)
+          .setName(t("product_label"))
+          .addDropdown((dd: DropdownComponent) => {
+            dd.addOption("", "—");
+            for (const p of this.productos) {
+              dd.addOption(p.nombre, p.nombre);
+            }
+            dd.setValue(this.data.producto || "");
+            dd.onChange((v) => (this.data.producto = v));
+          });
+
+        new Setting(detailContainer).setName(t("quantity")).addText((text) => {
+          text.inputEl.type = "number";
+          text.inputEl.step = "1";
+          text.setValue(String(this.data.cantidad_producto || 0)).onChange((v) => {
+            this.data.cantidad_producto = parseInt(v) || 0;
+          });
+        });
+      }
+    };
+
+    const buildInventoryCheck = () => {
+      inventoryCheckContainer.empty();
+      if (this.data.deuda_tipo === "producto" && this.data.clase === "en_contra") {
+        new Setting(inventoryCheckContainer)
+          .setName(t("registerInInventory"))
+          .setDesc(t("registerInventoryDesc"))
+          .addToggle((toggle) => {
+            toggle.setValue(this.data.registrar_en_inventario || false);
+            toggle.onChange((v) => (this.data.registrar_en_inventario = v));
+          });
+      }
+    };
+
     new Setting(form)
-      .setName("Tipo de deuda")
+      .setName(t("debtType"))
       .addDropdown((dd: DropdownComponent) => {
-        dd.addOption("a_favor", "A favor (me deben)");
-        dd.addOption("en_contra", "En contra (debo)");
+        dd.addOption("a_favor", t("favorMe"));
+        dd.addOption("en_contra", t("againstMe"));
         dd.setValue(this.data.clase || "a_favor");
         dd.onChange((v) => {
           this.data.clase = v as DeudaClase;
           this.data.cliente = "";
           this.data.proveedor = "";
-          buildContactDropdown(contactSettingEl);
+          buildContactDropdown(contactContainer);
+          buildInventoryCheck();
         });
       });
 
-    const montoRow = form.createDiv({ cls: "ordermanager-form-row" });
-    new Setting(montoRow.createDiv()).setName("Monto total").addText((t) => {
-      t.inputEl.type = "number";
-      t.inputEl.step = "0.01";
-      t.setValue(String(this.data.monto_total || 0)).onChange((v) => {
-        this.data.monto_total = parseFloat(v) || 0;
-      });
-    });
-    new Setting(montoRow.createDiv()).setName("Monto pagado").addText((t) => {
-      t.inputEl.type = "number";
-      t.inputEl.step = "0.01";
-      t.setValue(String(this.data.monto_pagado || 0)).onChange((v) => {
-        this.data.monto_pagado = parseFloat(v) || 0;
-      });
-    });
-
     new Setting(form)
-      .setName("Moneda")
-      .addText((t) =>
-        t
-          .setValue(this.data.moneda || this.plugin.settings.defaultCurrency)
-          .onChange((v) => (this.data.moneda = v))
-      );
+      .setName(t("debtKind"))
+      .addDropdown((dd: DropdownComponent) => {
+        dd.addOption("dinero", t("money"));
+        dd.addOption("producto", t("product_label"));
+        dd.setValue(this.data.deuda_tipo || "dinero");
+        dd.onChange((v) => {
+          this.data.deuda_tipo = v as DeudaTipo;
+          buildDetailSection();
+          buildInventoryCheck();
+        });
+      });
+
+    contactContainer = form.createDiv();
+    buildContactDropdown(contactContainer);
+
+    detailContainer = form.createDiv();
+    buildDetailSection();
+
+    inventoryCheckContainer = form.createDiv();
+    buildInventoryCheck();
 
     const fechasRow = form.createDiv({ cls: "ordermanager-form-row" });
-    new Setting(fechasRow.createDiv()).setName("Fecha inicio").addText((t) => {
-      t.inputEl.type = "date";
-      t.setValue(this.data.fecha_inicio || today()).onChange((v) => (this.data.fecha_inicio = v));
+    new Setting(fechasRow.createDiv()).setName(t("startDate")).addText((text) => {
+      text.inputEl.type = "date";
+      text.setValue(this.data.fecha_inicio || today()).onChange((v) => (this.data.fecha_inicio = v));
     });
-    new Setting(fechasRow.createDiv()).setName("Fecha vencimiento").addText((t) => {
-      t.inputEl.type = "date";
-      t.setValue(this.data.fecha_vencimiento || "").onChange(
+    new Setting(fechasRow.createDiv()).setName(t("dueDate")).addText((text) => {
+      text.inputEl.type = "date";
+      text.setValue(this.data.fecha_vencimiento || "").onChange(
         (v) => (this.data.fecha_vencimiento = v)
       );
     });
 
-    contactSettingEl = form.createDiv();
-    buildContactDropdown(contactSettingEl);
-
-    new Setting(form).setName("Descripción").addTextArea((t) => {
-      t.setValue(this.data.descripcion || "").onChange((v) => (this.data.descripcion = v));
+    new Setting(form).setName(t("description")).addTextArea((text) => {
+      text.setValue(this.data.descripcion || "").onChange((v) => (this.data.descripcion = v));
     });
 
     new Setting(form)
-      .setName("Estado")
+      .setName(t("state"))
       .addDropdown((dd: DropdownComponent) => {
-        dd.addOption("pendiente", "Pendiente");
-        dd.addOption("pagada", "Pagada");
-        dd.addOption("vencida", "Vencida");
+        dd.addOption("pendiente", t("pending"));
+        dd.addOption("pagada", t("paid"));
+        dd.addOption("vencida", t("overdue"));
         dd.setValue(this.data.estado || "pendiente");
         dd.onChange((v) => {
           this.data.estado = v as DeudaEstado;
         });
       });
 
-    const cuotasRow = form.createDiv({ cls: "ordermanager-form-row" });
-    new Setting(cuotasRow.createDiv()).setName("Cuotas totales").addText((t) => {
-      t.inputEl.type = "number";
-      t.setValue(String(this.data.cuotas || 1)).onChange((v) => {
-        this.data.cuotas = parseInt(v) || 1;
-      });
-    });
-    new Setting(cuotasRow.createDiv()).setName("Cuotas pagadas").addText((t) => {
-      t.inputEl.type = "number";
-      t.setValue(String(this.data.cuotas_pagadas || 0)).onChange((v) => {
-        this.data.cuotas_pagadas = parseInt(v) || 0;
-      });
-    });
-
-    new Setting(form).setName("Tasa de interés (%)").addText((t) => {
-      t.inputEl.type = "number";
-      t.inputEl.step = "0.01";
-      t.setValue(String(this.data.tasa_interes || 0)).onChange((v) => {
-        this.data.tasa_interes = parseFloat(v) || 0;
-      });
-    });
-
     const actions = contentEl.createDiv({ cls: "ordermanager-form-actions" });
-    actions.createEl("button", { text: "Cancelar", cls: "secondary" }).onclick = () =>
+    actions.createEl("button", { text: t("cancel"), cls: "secondary" }).onclick = () =>
       this.close();
     if (this.existingFile) {
-      actions.createEl("button", { text: "Eliminar", cls: "danger" }).onclick = async () => {
+      actions.createEl("button", { text: t("delete"), cls: "danger" }).onclick = async () => {
         if (!confirm("¿Eliminar esta deuda?")) return;
         await this.plugin.dataManager.deleteFile(this.existingFile!);
         this.onSubmit();
         this.close();
       };
     }
-    actions.createEl("button", { text: "Guardar", cls: "primary" }).onclick = async () => {
-      if (!(this.data.monto_total && this.data.monto_total > 0)) {
-        new Notice("El monto total debe ser mayor a 0.");
-        return;
+    actions.createEl("button", { text: t("save"), cls: "primary" }).onclick = async () => {
+      if (this.data.deuda_tipo === "producto") {
+        if (!this.data.producto) {
+          new Notice(t("productRequired"));
+          return;
+        }
+        if (!(this.data.cantidad_producto && this.data.cantidad_producto > 0)) {
+          new Notice(t("quantityRequired"));
+          return;
+        }
+      } else {
+        if (!(this.data.monto_total && this.data.monto_total > 0)) {
+          new Notice(t("totalAmountRequired"));
+          return;
+        }
       }
       await this.plugin.dataManager.saveDeuda(this.data, this.existingFile || undefined);
       this.onSubmit();

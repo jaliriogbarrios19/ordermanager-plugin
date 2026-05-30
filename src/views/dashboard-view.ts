@@ -38,8 +38,19 @@ export class DashboardView extends ItemView {
     return "landmark";
   }
 
+  private firstRender = true;
+
   async onOpen() {
+    this.registerEvent(
+      this.app.workspace.on("active-leaf-change", (leaf) => {
+        if (leaf?.view === this && !this.firstRender) {
+          this.refresh();
+        }
+        this.firstRender = false;
+      })
+    );
     await this.refresh();
+    this.firstRender = false;
   }
 
   async refresh() {
@@ -363,23 +374,42 @@ export class DashboardView extends ItemView {
         const table = lastTransEl.createEl("table", { cls: "ordermanager-table" });
         const thead = table.createEl("thead");
         const headerRow = thead.createEl("tr");
-        for (const h of ["Fecha", "Tipo", "Monto", "Categoría", "Descripción"]) {
+        for (const h of ["Fecha", "Tipo", "Monto", "Categoría", "Descripción", i18n("receipt")]) {
           headerRow.createEl("th", { text: h });
         }
 
         const tbody = table.createEl("tbody");
         for (const t of lastTransactions) {
-          const row = tbody.createEl("tr");
-          row.createEl("td", { text: t.data.fecha });
+          const d = t.data;
+          const row = tbody.createEl("tr", { cls: "clickable-row" });
+          row.createEl("td", { text: d.fecha });
           row.createEl("td", {
-            text: t.data.clase === "ingreso" ? i18n("income") : i18n("expense"),
-            cls: `ordermanager-badge ${t.data.clase}`,
+            text: d.clase === "ingreso" ? i18n("income") : i18n("expense"),
+            cls: `ordermanager-badge ${d.clase}`,
           });
           row.createEl("td", {
-            text: formatCurrency(t.data.monto || 0, t.data.moneda || currency),
+            text: formatCurrency(d.monto || 0, d.moneda || currency),
           });
-          row.createEl("td", { text: t.data.categoria || "—" });
-          row.createEl("td", { text: t.data.descripcion || "—" });
+          row.createEl("td", { text: d.categoria || "—" });
+          row.createEl("td", { text: d.descripcion || "—" });
+          const compTd = row.createEl("td");
+          if (d.comprobante) {
+            const icon = compTd.createEl("span", { text: "📎" });
+            icon.style.cursor = "pointer";
+            icon.setAttr("title", d.comprobante);
+          } else {
+            compTd.createEl("span", { text: "—" });
+          }
+
+          row.onclick = () => {
+            new TransaccionModal(
+              this.plugin.app,
+              this.plugin,
+              () => this.refresh(),
+              d,
+              t.file
+            ).open();
+          };
         }
       }
 

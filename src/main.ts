@@ -27,24 +27,22 @@ export default class OrderManagerPlugin extends Plugin {
     setLang((this.settings.language || "es") as SupportedLang);
     this.dataManager = new DataManager(this.app.vault, this.settings);
 
-    await this.dataManager.ensureBaseFolders();
-
     if (!this.settings.onboardingComplete) {
       new OnboardingModal(this.app, this).open();
     }
 
-    this.addSettingTab(new OrderManagerSettingTab(this.app, this));
+      this.addSettingTab(new OrderManagerSettingTab(this.app, this));
 
-    this.registerView(VIEW_TYPE_DASHBOARD, (leaf) => new DashboardView(leaf, this));
-    this.registerView(VIEW_TYPE_TRANSACCIONES, (leaf) => new TransaccionesView(leaf, this));
-    this.registerView(VIEW_TYPE_CLIENTES, (leaf) => new ClientesView(leaf, this));
-    this.registerView(VIEW_TYPE_PROVEEDORES, (leaf) => new ProveedoresView(leaf, this));
-    this.registerView(VIEW_TYPE_INVENTARIO, (leaf) => new InventarioView(leaf, this));
-    this.registerView(VIEW_TYPE_DEUDAS, (leaf) => new DeudasView(leaf, this));
+      this.registerView(VIEW_TYPE_DASHBOARD, (leaf) => new DashboardView(leaf, this));
+      this.registerView(VIEW_TYPE_TRANSACCIONES, (leaf) => new TransaccionesView(leaf, this));
+      this.registerView(VIEW_TYPE_CLIENTES, (leaf) => new ClientesView(leaf, this));
+      this.registerView(VIEW_TYPE_PROVEEDORES, (leaf) => new ProveedoresView(leaf, this));
+      this.registerView(VIEW_TYPE_INVENTARIO, (leaf) => new InventarioView(leaf, this));
+      this.registerView(VIEW_TYPE_DEUDAS, (leaf) => new DeudasView(leaf, this));
 
-    this.addRibbonIcon("landmark", "OrderManager", () => {
-      this.activateView(VIEW_TYPE_DASHBOARD);
-    });
+      this.addRibbonIcon("landmark", "OrderManager", () => {
+        this.activateView(VIEW_TYPE_DASHBOARD);
+      });
 
     this.addCommand({
       id: "open-dashboard",
@@ -154,6 +152,7 @@ export default class OrderManagerPlugin extends Plugin {
         new GlobalSearchModal(this.app, this).open();
       },
     });
+
   }
 
   async activateView(viewType: string) {

@@ -35,12 +35,20 @@ export function exportProductosCSV(productos: Array<{ data: ProductoData }>): st
 }
 
 export function exportDeudasCSV(deudas: Array<{ data: DeudaData }>): string {
-  const headers = ["Tipo", "Descripción", "Monto total", "Monto pagado", "Restante", "Vencimiento", "Contacto", "Estado"];
+  const headers = ["Tipo", "Categoría", "Descripción", "Monto total", "Monto pagado", "Restante", "Producto", "Cantidad", "Registrado en inventario", "Vencimiento", "Contacto", "Estado"];
   const rows = deudas.map((d) => [
-    d.data.clase === "a_favor" ? "A favor" : "En contra", d.data.descripcion,
-    String(d.data.monto_total), String(d.data.monto_pagado),
+    d.data.clase === "a_favor" ? "A favor" : "En contra",
+    d.data.deuda_tipo === "producto" ? "Producto" : "Dinero",
+    d.data.descripcion,
+    String(d.data.monto_total),
+    String(d.data.monto_pagado),
     String((d.data.monto_total || 0) - (d.data.monto_pagado || 0)),
-    d.data.fecha_vencimiento, d.data.cliente || d.data.proveedor, d.data.estado,
+    d.data.producto || "",
+    String(d.data.cantidad_producto || 0),
+    d.data.registrar_en_inventario ? "Sí" : "No",
+    d.data.fecha_vencimiento,
+    d.data.cliente || d.data.proveedor,
+    d.data.estado,
   ]);
   return buildCSV(headers, rows);
 }

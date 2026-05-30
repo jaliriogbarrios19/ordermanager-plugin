@@ -30,8 +30,19 @@ export class TransaccionesView extends ItemView {
     return "arrow-left-right";
   }
 
+  private firstRender = true;
+
   async onOpen() {
+    this.registerEvent(
+      this.app.workspace.on("active-leaf-change", (leaf) => {
+        if (leaf?.view === this && !this.firstRender) {
+          this.refresh();
+        }
+        this.firstRender = false;
+      })
+    );
     await this.refresh();
+    this.firstRender = false;
   }
 
   async refresh() {
@@ -160,7 +171,7 @@ export class TransaccionesView extends ItemView {
         delBtn.onclick = async (e: MouseEvent) => {
           e.stopPropagation();
           if (!confirm("¿Eliminar esta transacción?")) return;
-          await this.plugin.dataManager.deleteFile(t.file);
+          await this.plugin.dataManager.deleteTransaccion(t.file);
           this.refresh();
         };
 

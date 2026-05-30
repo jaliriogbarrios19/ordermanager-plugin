@@ -39,6 +39,7 @@ export interface TransaccionData {
   medio_pago: string;
   comprobante: string;
   estado: string;
+  deuda_ref: string;
   created: string;
   updated: string;
   recurrente: string;
@@ -47,10 +48,12 @@ export interface TransaccionData {
 
 export type DeudaClase = "a_favor" | "en_contra";
 export type DeudaEstado = "pendiente" | "pagada" | "vencida";
+export type DeudaTipo = "dinero" | "producto";
 
 export interface DeudaData {
   tipo: "deuda";
   clase: DeudaClase;
+  deuda_tipo: DeudaTipo;
   monto_total: number;
   monto_pagado: number;
   moneda: string;
@@ -63,6 +66,9 @@ export interface DeudaData {
   cuotas: number;
   cuotas_pagadas: number;
   tasa_interes: number;
+  producto: string;
+  cantidad_producto: number;
+  registrar_en_inventario: boolean;
   created: string;
   updated: string;
 }
@@ -176,8 +182,8 @@ export const DEFAULT_SETTINGS: OrderManagerSettings = {
   bcvPrice: 0,
   fechaTasas: "",
   onboardingComplete: false,
-  categoriasIngreso: ["Ventas", "Servicios", "Consultoría", "Inversiones", "Otros ingresos"],
-  categoriasEgreso: ["Insumos", "Servicios", "Impuestos", "Salarios", "Alquiler", "Servicios públicos", "Marketing", "Otros egresos"],
+  categoriasIngreso: ["Ventas", "Servicios", "Consultoría", "Inversiones", "Cobro de deuda", "Otros ingresos"],
+  categoriasEgreso: ["Insumos", "Servicios", "Impuestos", "Salarios", "Alquiler", "Servicios públicos", "Pago de deuda", "Marketing", "Otros egresos"],
   mediosPago: ["Efectivo", "Transferencia", "Tarjeta de crédito", "Tarjeta de débito", "Cheque", "Billetera digital"],
   categoriasProducto: ["General", "Materia prima", "Producto terminado", "Servicio"],
   categoriasCliente: ["Minorista", "Mayorista", "Corporativo"],

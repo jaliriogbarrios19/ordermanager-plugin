@@ -30,9 +30,26 @@ export class DataManager {
 
   async ensureFolder(path: string): Promise<TFolder> {
     const normalized = normalizePath(path);
-    let folder = this.vault.getAbstractFileByPath(normalized);
-    if (folder && folder instanceof TFolder) return folder;
-    return await this.vault.createFolder(normalized);
+    const existing = this.vault.getAbstractFileByPath(normalized);
+    if (existing && existing instanceof TFolder) return existing;
+
+    const existsOnDisk = await this.vault.adapter.exists(normalized);
+    if (existsOnDisk) {
+      const retry = this.vault.getAbstractFileByPath(normalized);
+      if (retry && retry instanceof TFolder) return retry;
+    }
+
+    try {
+      return await this.vault.createFolder(normalized);
+    } catch {
+      const retry = this.vault.getAbstractFileByPath(normalized);
+      if (retry && retry instanceof TFolder) return retry;
+      if (await this.vault.adapter.exists(normalized)) {
+        const again = this.vault.getAbstractFileByPath(normalized);
+        if (again && again instanceof TFolder) return again;
+      }
+      throw new Error(`No se pudo crear/verificar la carpeta: ${normalized}`);
+    }
   }
 
   async ensureBaseFolders(): Promise<void> {
@@ -43,6 +60,51 @@ export class DataManager {
     await this.ensureFolder(`${base}/Transacciones`);
     await this.ensureFolder(`${base}/Deudas`);
     await this.ensureFolder(`${base}/Inventario`);
+    await this.ensureFolder(`${base}/Comprobantes`);
+  }
+
+  private comprobantesPath(): string {
+    return normalizePath(`${this.settings.baseFolder}/${this.settings.libroActivo}/Comprobantes`);
+  }
+
+  async saveComprobante(arrayBuffer: ArrayBuffer, originalName: string): Promise<string> {
+    await this.ensureFolder(this.comprobantesPath());
+    const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const sanitizedName = originalName.replace(/[\\/:*?"<>|]/g, "-");
+    const filename = `${ts}-${sanitizedName}`;
+    let finalPath = normalizePath(`${this.comprobantesPath()}/${filename}`);
+    let counter = 1;
+    while (this.vault.getAbstractFileByPath(finalPath)) {
+      const dotIdx = filename.lastIndexOf(".");
+      const base = dotIdx > 0 ? filename.substring(0, dotIdx) : filename;
+      const ext = dotIdx > 0 ? filename.substring(dotIdx) : "";
+      finalPath = normalizePath(`${this.comprobantesPath()}/${base}-${counter}${ext}`);
+      counter++;
+    }
+    await this.vault.createBinary(finalPath, arrayBuffer);
+    return finalPath;
+  }
+
+  async deleteComprobante(comprobantePath: string): Promise<void> {
+    if (!comprobantePath) return;
+    const file = this.vault.getAbstractFileByPath(comprobantePath);
+    if (file instanceof TFile) {
+      await this.vault.delete(file);
+    } else if (await this.vault.adapter.exists(comprobantePath)) {
+      await this.vault.adapter.remove(comprobantePath);
+    }
+  }
+
+  async deleteTransaccion(file: TFile): Promise<void> {
+    try {
+      const data = await this.readFrontmatter(file);
+      if (data.comprobante && typeof data.comprobante === "string") {
+        await this.deleteComprobante(data.comprobante);
+      }
+    } catch {
+      /* no comprobante or unreadable */
+    }
+    await this.vault.delete(file);
   }
 
   private async readFrontmatter(file: TFile): Promise<Record<string, unknown>> {
@@ -101,7 +163,13 @@ export class DataManager {
       counter++;
     }
 
-    return await this.vault.create(finalPath, content);
+    try {
+      return await this.vault.create(finalPath, content);
+    } catch (e) {
+      const retry = this.vault.getAbstractFileByPath(finalPath);
+      if (retry instanceof TFile) return retry;
+      throw e;
+    }
   }
 
   private async updateFile(file: TFile, frontmatter: Record<string, unknown>, body?: string): Promise<void> {
@@ -265,19 +333,41 @@ export class DataManager {
       .replace(/[\\/:*?"<>|]/g, "-");
     const filename = `deuda-${prefix}-${sanitizedDesc}`;
 
+    let result: TFile;
+
     if (existingFile) {
       const updated: Record<string, unknown> = { ...data, tipo: "deuda", updated: nowStr };
       await this.updateFile(existingFile, updated);
-      return existingFile;
+      result = existingFile;
+    } else {
+      const content = deudaTemplate({
+        ...data,
+        created: nowStr,
+        updated: nowStr,
+      } as Partial<DeudaData>);
+
+      result = await this.saveNewFile(this.basePath("Deudas"), filename, content);
     }
 
-    const content = deudaTemplate({
-      ...data,
-      created: nowStr,
-      updated: nowStr,
-    } as Partial<DeudaData>);
+    if (
+      data.deuda_tipo === "producto" &&
+      data.registrar_en_inventario &&
+      data.clase === "en_contra" &&
+      data.producto &&
+      (data.cantidad_producto || 0) > 0
+    ) {
+      const productos = await this.getProductos();
+      const match = productos.find((p) => p.data.nombre === data.producto);
+      if (match) {
+        const updatedProduct = {
+          ...match.data,
+          stock: (match.data.stock || 0) + (data.cantidad_producto || 0),
+        };
+        await this.saveProducto(updatedProduct, match.file);
+      }
+    }
 
-    return await this.saveNewFile(this.basePath("Deudas"), filename, content);
+    return result;
   }
 
   // ============= INVENTARIO =============

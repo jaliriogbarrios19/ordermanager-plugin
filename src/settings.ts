@@ -441,7 +441,12 @@ export class OrderManagerSettingTab extends PluginSettingTab {
   }
 
   private async copyFolder(src: TFolder, dstPath: string): Promise<void> {
-    await this.plugin.app.vault.createFolder(dstPath);
+    try {
+      await this.plugin.app.vault.createFolder(dstPath);
+    } catch {
+      const existing = this.plugin.app.vault.getAbstractFileByPath(dstPath);
+      if (!(existing instanceof TFolder)) throw new Error(`No se pudo crear carpeta destino: ${dstPath}`);
+    }
     for (const child of src.children) {
       if (child instanceof TFile) {
         const content = await this.plugin.app.vault.read(child);

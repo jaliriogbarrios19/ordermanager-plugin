@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, WorkspaceLeaf, Notice, Modal, App, Setting } from "obsidian";
 import type OrderManagerPlugin from "../main";
 import type { DeudaData } from "../types";
 import { DeudaModal } from "../modals/deuda-modal";
@@ -31,8 +31,19 @@ export class DeudasView extends ItemView {
     return "banknote";
   }
 
+  private firstRender = true;
+
   async onOpen() {
+    this.registerEvent(
+      this.app.workspace.on("active-leaf-change", (leaf) => {
+        if (leaf?.view === this && !this.firstRender) {
+          this.refresh();
+        }
+        this.firstRender = false;
+      })
+    );
     await this.refresh();
+    this.firstRender = false;
   }
 
   async refresh() {
@@ -65,8 +76,16 @@ export class DeudasView extends ItemView {
     filterEstado.createEl("option", { text: i18n("paid"), value: "pagada" });
     filterEstado.createEl("option", { text: i18n("overdue"), value: "vencida" });
 
+    const refreshAll = async () => {
+      const dashView = this.plugin.getExistingView(VIEW_TYPE_DASHBOARD);
+      if (dashView && typeof (dashView as any).refresh === "function") {
+        await (dashView as any).refresh();
+      }
+      await this.refresh();
+    };
+
     toolbar.createEl("button", { text: i18n("newDebt"), cls: "" }).onclick = () => {
-      new DeudaModal(this.plugin.app, this.plugin, () => this.refresh()).open();
+      new DeudaModal(this.plugin.app, this.plugin, () => refreshAll()).open();
     };
 
     toolbar.createEl("button", { text: "CSV", cls: "secondary" }).onclick = () => {
@@ -186,22 +205,35 @@ export class DeudasView extends ItemView {
       const tbody = table.createEl("tbody");
       for (const d of filtered) {
         const data = d.data;
+        const esProducto = data.deuda_tipo === "producto";
         const restante = (data.monto_total || 0) - (data.monto_pagado || 0);
 
         const row = tbody.createEl("tr", { cls: "clickable-row" });
 
-        row.createEl("td", { text: data.descripcion || "—" });
+        if (esProducto) {
+          row.createEl("td", {
+            text: `${data.producto || "—"} × ${data.cantidad_producto || 0}`,
+          });
+        } else {
+          row.createEl("td", { text: data.descripcion || "—" });
+        }
         row.createEl("td", {
-          text: data.clase === "a_favor" ? "A favor" : "En contra",
+          text: esProducto
+            ? data.clase === "a_favor"
+              ? "Producto (A favor)"
+              : "Producto (En contra)"
+            : data.clase === "a_favor"
+            ? "A favor"
+            : "En contra",
         });
         row.createEl("td", {
-          text: formatCurrency(data.monto_total || 0, data.moneda),
+          text: esProducto ? "—" : formatCurrency(data.monto_total || 0, data.moneda),
         });
         row.createEl("td", {
-          text: formatCurrency(data.monto_pagado || 0, data.moneda),
+          text: esProducto ? "—" : formatCurrency(data.monto_pagado || 0, data.moneda),
         });
         row.createEl("td", {
-          text: formatCurrency(restante, data.moneda),
+          text: esProducto ? "—" : formatCurrency(restante, data.moneda),
         });
         row.createEl("td", {
           text: data.fecha_vencimiento
@@ -219,39 +251,55 @@ export class DeudasView extends ItemView {
         const actionTd = row.createEl("td");
         actionTd.style.cssText = "display:flex;gap:4px;";
 
-        if (data.estado !== "pagada") {
+        if (data.estado !== "pagada" && !esProducto) {
           const payBtn = actionTd.createEl("button", { text: "$" });
           payBtn.title = "Registrar pago";
           payBtn.style.cssText =
             "padding:2px 6px;border:none;border-radius:4px;background:var(--color-green);color:#fff;cursor:pointer;font-size:0.85em;line-height:1;";
-          payBtn.onclick = async (e: MouseEvent) => {
+          payBtn.onclick = (e: MouseEvent) => {
             e.stopPropagation();
             const restante = (data.monto_total || 0) - (data.monto_pagado || 0);
-            const amount = prompt(`Monto a abonar (restante: ${formatCurrency(restante, data.moneda)})`, String(restante));
-            if (!amount) return;
-            const parsed = parseFloat(amount);
-            if (isNaN(parsed) || parsed <= 0) return;
-            const newPagado = (data.monto_pagado || 0) + parsed;
-            const updated = newPagado >= (data.monto_total || 0) ? "pagada" : data.estado;
-            await this.plugin.dataManager.saveDeuda(
-              { ...data, monto_pagado: newPagado, estado: updated },
-              d.file
-            );
-            const ref = this.plugin.settings.tasaReferencia || "USD";
-            const rates = this.plugin.settings.tasasCambio || { USD: 1 };
-            await this.plugin.dataManager.saveTransaccion({
-              clase: "ingreso",
-              monto: parsed,
-              monto_referencia: convertir(parsed, data.moneda, rates, ref),
-              moneda: data.moneda,
-              fecha: new Date().toISOString().split("T")[0],
-              categoria: "Cobro de deuda",
-              cliente: data.cliente,
-              proveedor: data.proveedor,
-              descripcion: `Abono: ${data.descripcion || "Deuda"}`,
-              estado: "confirmado",
-            });
-            this.refresh();
+            new PagoDeudaModal(
+              this.plugin.app,
+              restante,
+              data.moneda,
+              async (parsed) => {
+                if (parsed === null || parsed <= 0) return;
+                try {
+                  const newPagado = (data.monto_pagado || 0) + parsed;
+                  const updated = newPagado >= (data.monto_total || 0) ? "pagada" : data.estado;
+                  await this.plugin.dataManager.saveDeuda(
+                    { ...data, monto_pagado: newPagado, estado: updated },
+                    d.file
+                  );
+                  const ref = this.plugin.settings.tasaReferencia || "USD";
+                  const rates = this.plugin.settings.tasasCambio || { USD: 1 };
+                  const esAFavor = data.clase === "a_favor";
+                  await this.plugin.dataManager.saveTransaccion({
+                    clase: esAFavor ? "ingreso" : "egreso",
+                    monto: parsed,
+                    monto_referencia: convertir(parsed, data.moneda, rates, ref),
+                    moneda: data.moneda,
+                    fecha: new Date().toISOString().split("T")[0],
+                    categoria: esAFavor ? "Cobro de deuda" : "Pago de deuda",
+                    cliente: data.cliente,
+                    proveedor: data.proveedor,
+                    descripcion: `Abono: ${data.descripcion || "Deuda"}`,
+                    estado: "confirmado",
+                    deuda_ref: d.file.path,
+                  });
+                  const dashView = this.plugin.getExistingView(VIEW_TYPE_DASHBOARD);
+                  if (dashView && typeof (dashView as any).refresh === "function") {
+                    await (dashView as any).refresh();
+                  }
+                  this.refresh();
+                  new Notice(`Pago registrado: ${formatCurrency(parsed, data.moneda)}`);
+                } catch (err) {
+                  new Notice("Error al registrar el pago. Revisá la consola (Ctrl+Shift+I).");
+                  console.error("OrderManager: error al registrar pago de deuda", err);
+                }
+              }
+            ).open();
           };
         }
 
@@ -262,14 +310,14 @@ export class DeudasView extends ItemView {
           e.stopPropagation();
           if (!confirm("¿Eliminar esta deuda?")) return;
           await this.plugin.dataManager.deleteFile(d.file);
-          this.refresh();
+          refreshAll();
         };
 
         row.onclick = () => {
           new DeudaModal(
             this.plugin.app,
             this.plugin,
-            () => this.refresh(),
+            () => refreshAll(),
             data,
             d.file
           ).open();
@@ -284,6 +332,67 @@ export class DeudasView extends ItemView {
   }
 
   async onClose() {
+    this.contentEl.empty();
+  }
+}
+
+class PagoDeudaModal extends Modal {
+  private onSubmit: (amount: number | null) => void;
+  private restante: number;
+  private moneda: string;
+
+  constructor(
+    app: App,
+    restante: number,
+    moneda: string,
+    onSubmit: (amount: number | null) => void
+  ) {
+    super(app);
+    this.restante = restante;
+    this.moneda = moneda;
+    this.onSubmit = onSubmit;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("ordermanager-modal");
+
+    contentEl.createEl("h3", { text: "Registrar pago" });
+    contentEl.createEl("p", {
+      text: `Restante: ${formatCurrency(this.restante, this.moneda)}`,
+    });
+
+    let monto = this.restante;
+
+    new Setting(contentEl)
+      .setName("Monto a abonar")
+      .addText((text) => {
+        text.inputEl.type = "number";
+        text.inputEl.step = "0.01";
+        text.setValue(String(this.restante));
+        text.onChange((v) => (monto = parseFloat(v) || 0));
+        text.inputEl.onkeydown = (e: KeyboardEvent) => {
+          if (e.key === "Enter") {
+            const parsed = parseFloat(text.getValue()) || 0;
+            this.close();
+            this.onSubmit(parsed > 0 ? parsed : null);
+          }
+        };
+      });
+
+    const actions = contentEl.createDiv({ cls: "ordermanager-form-actions" });
+    actions.createEl("button", { text: "Cancelar", cls: "secondary" }).onclick = () => {
+      this.close();
+      this.onSubmit(null);
+    };
+    actions.createEl("button", { text: "Registrar", cls: "primary" }).onclick = () => {
+      this.close();
+      this.onSubmit(monto > 0 ? monto : null);
+    };
+  }
+
+  onClose() {
     this.contentEl.empty();
   }
 }

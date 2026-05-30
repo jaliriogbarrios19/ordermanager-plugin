@@ -138,6 +138,18 @@ const es: TranslationDict = {
   periodLabel: "Transacciones en el período",
   activeDebts: "Deudas activas",
   actions: "Acciones",
+  debtKind: "Deuda en",
+  money: "Dinero",
+  product_label: "Producto",
+  quantity: "Cantidad",
+  registerInInventory: "Registrar en inventario",
+  registerInventoryDesc: "Al guardar, se sumará la cantidad al stock del producto",
+  productRequired: "Seleccioná un producto.",
+  quantityRequired: "La cantidad debe ser mayor a 0.",
+  selectDebt: "Seleccionar deuda",
+  noDebtsAvailable: "Sin deudas pendientes",
+  debtPayment: "Pago de deuda",
+  debtCollection: "Cobro de deuda",
 };
 
 const en: TranslationDict = {
@@ -261,6 +273,18 @@ const en: TranslationDict = {
   periodLabel: "Transactions in period",
   activeDebts: "Active debts",
   actions: "Actions",
+  debtKind: "Debt in",
+  money: "Money",
+  product_label: "Product",
+  quantity: "Quantity",
+  registerInInventory: "Record in inventory",
+  registerInventoryDesc: "On save, the quantity will be added to the product stock",
+  productRequired: "Select a product.",
+  quantityRequired: "Quantity must be greater than 0.",
+  selectDebt: "Select debt",
+  noDebtsAvailable: "No pending debts",
+  debtPayment: "Debt payment",
+  debtCollection: "Debt collection",
 };
 
 const pt: TranslationDict = {
@@ -384,6 +408,18 @@ const pt: TranslationDict = {
   periodLabel: "Transações no período",
   activeDebts: "Dívidas ativas",
   actions: "Ações",
+  debtKind: "Dívida em",
+  money: "Dinheiro",
+  product_label: "Produto",
+  quantity: "Quantidade",
+  registerInInventory: "Registrar no inventário",
+  registerInventoryDesc: "Ao salvar, a quantidade será adicionada ao estoque do produto",
+  productRequired: "Selecione um produto.",
+  quantityRequired: "A quantidade deve ser maior que 0.",
+  selectDebt: "Selecionar dívida",
+  noDebtsAvailable: "Sem dívidas pendentes",
+  debtPayment: "Pagamento de dívida",
+  debtCollection: "Cobrança de dívida",
 };
 
 const allTranslations: Record<SupportedLang, TranslationDict> = {
