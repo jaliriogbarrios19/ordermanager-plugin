@@ -63,19 +63,62 @@ export class DataManager {
     await this.ensureFolder(`${base}/Comprobantes`);
   }
 
-  async discoverBooks(): Promise<string[]> {
-    const baseObj = this.vault.getAbstractFileByPath(normalizePath(this.settings.baseFolder));
-    if (!(baseObj instanceof TFolder)) return [];
+  async discoverBooks(): Promise<{ books: string[]; actualBasePath: string }> {
+    const configuredPath = normalizePath(this.settings.baseFolder);
+    let matchedPath = configuredPath;
 
     const dataFolders = ["Clientes", "Proveedores", "Transacciones", "Deudas", "Inventario"];
-    return baseObj.children
-      .filter((c): c is TFolder => c instanceof TFolder)
-      .filter((folder) =>
-        folder.children.some(
-          (c) => c instanceof TFolder && dataFolders.includes(c.name)
+
+    const collectBooks = (folder: TFolder): string[] =>
+      folder.children
+        .filter((c): c is TFolder => c instanceof TFolder)
+        .filter((sub) =>
+          sub.children.some(
+            (c) => c instanceof TFolder && dataFolders.includes(c.name)
+          )
         )
-      )
-      .map((f) => f.name);
+        .map((f) => f.name);
+
+    const baseRaw = this.vault.getAbstractFileByPath(configuredPath);
+    if (baseRaw instanceof TFolder) {
+      return { books: collectBooks(baseRaw), actualBasePath: configuredPath };
+    }
+
+    const root = this.vault.getRoot();
+    if (root) {
+      for (const child of root.children) {
+        if (child instanceof TFolder && child.name.toLowerCase() === configuredPath.toLowerCase()) {
+          matchedPath = child.path;
+          return { books: collectBooks(child), actualBasePath: matchedPath };
+        }
+      }
+    }
+
+    const exists = await this.vault.adapter.exists(configuredPath);
+    if (exists) {
+      const listing = await this.vault.adapter.list(configuredPath);
+      const books: string[] = [];
+      for (const folderPath of listing.folders) {
+        const relative = folderPath.startsWith(configuredPath + "/")
+          ? folderPath.slice(configuredPath.length + 1)
+          : folderPath;
+        const name = relative.split("/")[0];
+        if (!name || books.includes(name)) continue;
+        const subPath = `${configuredPath}/${name}`;
+        try {
+          const subListing = await this.vault.adapter.list(subPath);
+          const hasData = dataFolders.some((df) =>
+            subListing.folders.some((f) => f === `${subPath}/${df}`)
+          );
+          if (hasData) books.push(name);
+        } catch {
+          /* subfolder not readable, skip */
+        }
+      }
+      return { books, actualBasePath: matchedPath };
+    }
+
+    return { books: [], actualBasePath: configuredPath };
   }
 
   private comprobantesPath(): string {

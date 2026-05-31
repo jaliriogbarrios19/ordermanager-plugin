@@ -20,7 +20,7 @@ export class OrderManagerSettingTab extends PluginSettingTab {
 
     containerEl.createEl("h2", { text: "OrderManager" });
 
-    new Setting(containerEl)
+    const baseFolderSetting = new Setting(containerEl)
       .setName("Carpeta base")
       .setDesc("Carpeta donde se almacenan los datos del plugin")
       .addText((text) =>
@@ -33,6 +33,26 @@ export class OrderManagerSettingTab extends PluginSettingTab {
             this.plugin.dataManager.updateSettings(this.plugin.settings);
           })
       );
+
+    baseFolderSetting.addButton((btn) =>
+      btn
+        .setButtonText("Detectar")
+        .setTooltip("Buscar carpetas OrderManager existentes en el vault")
+        .onClick(async () => {
+          const { books: discovered, actualBasePath } = await this.plugin.dataManager.discoverBooks();
+          if (discovered.length > 0) {
+            this.plugin.settings.baseFolder = actualBasePath;
+            this.plugin.settings.libros = discovered;
+            this.plugin.settings.libroActivo = discovered[0];
+            await this.plugin.saveSettings();
+            this.plugin.dataManager.updateSettings(this.plugin.settings);
+            new Notice(`${discovered.length} libro(s) detectado(s) en "${actualBasePath}".`);
+            this.display();
+          } else {
+            new Notice(`No se encontraron datos en "${actualBasePath}".`);
+          }
+        })
+    );
 
     new Setting(containerEl)
       .setName(t("defaultCurrency"))

@@ -27,18 +27,27 @@ export default class OrderManagerPlugin extends Plugin {
     setLang((this.settings.language || "es") as SupportedLang);
     this.dataManager = new DataManager(this.app.vault, this.settings);
 
-    const discovered = await this.dataManager.discoverBooks();
+    const { books: discovered, actualBasePath } = await this.dataManager.discoverBooks();
     let changed = false;
-    for (const book of discovered) {
-      if (!this.settings.libros.includes(book)) {
-        this.settings.libros.push(book);
+
+    if (actualBasePath !== this.settings.baseFolder) {
+      this.settings.baseFolder = actualBasePath;
+      changed = true;
+    }
+
+    if (discovered.length > 0) {
+      for (const book of discovered) {
+        if (!this.settings.libros.includes(book)) {
+          this.settings.libros.push(book);
+          changed = true;
+        }
+      }
+      if (!this.settings.libros.includes(this.settings.libroActivo) || !this.settings.libroActivo) {
+        this.settings.libroActivo = this.settings.libros[0] || "Principal";
         changed = true;
       }
     }
-    if (!this.settings.libros.includes(this.settings.libroActivo) || !this.settings.libroActivo) {
-      this.settings.libroActivo = this.settings.libros[0] || "Principal";
-      changed = true;
-    }
+
     if (changed) await this.saveSettings();
 
     if (!this.settings.onboardingComplete) {
