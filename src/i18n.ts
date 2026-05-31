@@ -150,6 +150,19 @@ const es: TranslationDict = {
   noDebtsAvailable: "Sin deudas pendientes",
   debtPayment: "Pago de deuda",
   debtCollection: "Cobro de deuda",
+  minAmount: "Monto mín.",
+  maxAmount: "Monto máx.",
+  addToInventory: "Agregar al inventario",
+  addToInventoryDesc: "Crear este producto en el inventario con el monto como precio de costo",
+  productAlreadyInInventory: "Este producto ya está en el inventario",
+  productName: "Nombre del producto",
+  generateTicket: "Generar ticket",
+  ticketTitle: "Ticket",
+  creditPurchase: "Compra a crédito",
+  share: "Compartir",
+  downloadImage: "Descargar imagen",
+  ticketSaved: "Ticket descargado",
+  thankYou: "Gracias por su compra",
 };
 
 const en: TranslationDict = {
@@ -285,6 +298,19 @@ const en: TranslationDict = {
   noDebtsAvailable: "No pending debts",
   debtPayment: "Debt payment",
   debtCollection: "Debt collection",
+  minAmount: "Min amount",
+  maxAmount: "Max amount",
+  addToInventory: "Add to inventory",
+  addToInventoryDesc: "Create this product in inventory with amount as cost price",
+  productAlreadyInInventory: "This product is already in inventory",
+  productName: "Product name",
+  generateTicket: "Generate ticket",
+  ticketTitle: "Ticket",
+  creditPurchase: "Credit purchase",
+  share: "Share",
+  downloadImage: "Download image",
+  ticketSaved: "Ticket downloaded",
+  thankYou: "Thank you for your purchase",
 };
 
 const pt: TranslationDict = {
@@ -420,6 +446,19 @@ const pt: TranslationDict = {
   noDebtsAvailable: "Sem dívidas pendentes",
   debtPayment: "Pagamento de dívida",
   debtCollection: "Cobrança de dívida",
+  minAmount: "Valor mín.",
+  maxAmount: "Valor máx.",
+  addToInventory: "Adicionar ao inventário",
+  addToInventoryDesc: "Criar este produto no inventário com o valor como preço de custo",
+  productAlreadyInInventory: "Este produto já está no inventário",
+  productName: "Nome do produto",
+  generateTicket: "Gerar ticket",
+  ticketTitle: "Ticket",
+  creditPurchase: "Compra a crédito",
+  share: "Compartilhar",
+  downloadImage: "Baixar imagem",
+  ticketSaved: "Ticket baixado",
+  thankYou: "Obrigado pela compra",
 };
 
 const allTranslations: Record<SupportedLang, TranslationDict> = {

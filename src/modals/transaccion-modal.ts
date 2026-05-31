@@ -6,6 +6,7 @@ import { today, now } from "../utils/date";
 import { convertir } from "../utils/exchange";
 import { formatCurrency } from "../utils/currency";
 import { t } from "../i18n";
+import { TicketModal } from "./ticket-modal";
 
 function esCategoriaDeuda(cat: string): boolean {
   return /deuda/i.test(cat);
@@ -27,6 +28,8 @@ export class TransaccionModal extends Modal {
   private clienteDd!: DropdownComponent;
   private proveedorDd!: DropdownComponent;
   private descripcionInput!: HTMLTextAreaElement;
+  private agregarAInventario = false;
+  private nuevoProductoInput!: HTMLInputElement;
 
   constructor(
     app: App,
@@ -271,8 +274,51 @@ export class TransaccionModal extends Modal {
           dd.addOption(p.nombre, p.nombre);
         }
         dd.setValue(this.data.producto || "");
-        dd.onChange((v) => (this.data.producto = v));
+        dd.onChange((v) => {
+          this.data.producto = v;
+          buildInventarioSection();
+        });
       });
+
+    const inventarioContainer = form.createDiv();
+
+    const buildInventarioSection = () => {
+      inventarioContainer.empty();
+      if (this.data.clase !== "egreso") {
+        this.agregarAInventario = false;
+        return;
+      }
+
+      const prodExists = this.data.producto && this.productos.some(
+        (p) => p.nombre.toLowerCase() === (this.data.producto || "").toLowerCase()
+      );
+
+      new Setting(inventarioContainer)
+        .setName(t("addToInventory"))
+        .setDesc(prodExists ? t("productAlreadyInInventory") : t("addToInventoryDesc"))
+        .addToggle((toggle) => {
+          toggle.setValue(this.agregarAInventario);
+          toggle.onChange((v) => {
+            this.agregarAInventario = v;
+            if (v && (!this.data.producto || prodExists)) {
+              this.data.producto = "";
+            }
+            buildInventarioSection();
+          });
+        });
+
+      if (this.agregarAInventario) {
+        new Setting(inventarioContainer)
+          .setName(t("productName"))
+          .addText((text) => {
+            text.setPlaceholder("Nombre del producto")
+              .setValue(this.data.producto || "")
+              .onChange((v) => (this.data.producto = v));
+            this.nuevoProductoInput = text.inputEl;
+          });
+      }
+    };
+    buildInventarioSection();
 
     new Setting(form).setName(t("description")).addTextArea((text) => {
       text.setValue(this.data.descripcion || "").onChange((v) => (this.data.descripcion = v));
@@ -408,10 +454,38 @@ export class TransaccionModal extends Modal {
         this.close();
       };
     }
+    actions.createEl("button", { text: t("generateTicket") }).onclick = async () => {
+      if (!this.data.monto || !this.data.fecha) {
+        new Notice("Completá los datos de la transacción antes de generar el ticket.");
+        return;
+      }
+      const clientes = await this.plugin.dataManager.getClientes();
+      const cliente = clientes.find((c) => c.data.nombre === this.data.cliente);
+      new TicketModal(this.app, this.plugin, this.data as TransaccionData, cliente?.data).open();
+    };
     actions.createEl("button", { text: t("save"), cls: "primary" }).onclick = async () => {
       if (!(this.data.monto && this.data.monto > 0)) {
         new Notice(t("amountRequired"));
         return;
+      }
+
+      if (this.agregarAInventario && this.data.producto && this.data.clase === "egreso") {
+        const prodExists = this.productos.some(
+          (p) => p.nombre.toLowerCase() === this.data.producto!.toLowerCase()
+        );
+        if (!prodExists) {
+          await this.plugin.dataManager.saveProducto({
+            nombre: this.data.producto,
+            precio_costo: this.data.monto,
+            moneda: this.data.moneda || this.plugin.settings.defaultCurrency,
+            categoria: this.data.categoria || "General",
+            proveedor: this.data.proveedor || "",
+            stock: 0,
+            stock_minimo: 0,
+            precio_venta: 0,
+            descripcion: "",
+          });
+        }
       }
       const ref = this.plugin.settings.tasaReferencia || "USD";
       const rates = this.plugin.settings.tasasCambio || { USD: 1 };

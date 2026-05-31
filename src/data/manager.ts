@@ -63,6 +63,21 @@ export class DataManager {
     await this.ensureFolder(`${base}/Comprobantes`);
   }
 
+  async discoverBooks(): Promise<string[]> {
+    const baseObj = this.vault.getAbstractFileByPath(normalizePath(this.settings.baseFolder));
+    if (!(baseObj instanceof TFolder)) return [];
+
+    const dataFolders = ["Clientes", "Proveedores", "Transacciones", "Deudas", "Inventario"];
+    return baseObj.children
+      .filter((c): c is TFolder => c instanceof TFolder)
+      .filter((folder) =>
+        folder.children.some(
+          (c) => c instanceof TFolder && dataFolders.includes(c.name)
+        )
+      )
+      .map((f) => f.name);
+  }
+
   private comprobantesPath(): string {
     return normalizePath(`${this.settings.baseFolder}/${this.settings.libroActivo}/Comprobantes`);
   }

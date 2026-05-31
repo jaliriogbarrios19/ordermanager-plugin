@@ -4,6 +4,7 @@ import type { TransaccionData } from "../types";
 import { formatCurrency } from "../utils/currency";
 import { formatDate } from "../utils/date";
 import { TransaccionModal } from "../modals/transaccion-modal";
+import { TicketModal } from "../modals/ticket-modal";
 import { exportToCSV, downloadCSV } from "../utils/export";
 import { VIEW_TYPE_DASHBOARD } from "./dashboard-view";
 import { t as i18n } from "../i18n";
@@ -92,6 +93,17 @@ export class TransaccionesView extends ItemView {
     const dateFrom = toolbar.createEl("input", { type: "date" });
     const dateTo = toolbar.createEl("input", { type: "date" });
 
+    const amountMin = toolbar.createEl("input", {
+      type: "number",
+      placeholder: i18n("minAmount"),
+    });
+    amountMin.style.cssText = "width:80px;";
+    const amountMax = toolbar.createEl("input", {
+      type: "number",
+      placeholder: i18n("maxAmount"),
+    });
+    amountMax.style.cssText = "width:80px;";
+
     let currentFiltered: typeof sorted = sorted;
 
     toolbar.createEl("button", { text: i18n("newTransaction"), cls: "" }).onclick = () => {
@@ -115,6 +127,8 @@ export class TransaccionesView extends ItemView {
       const search = searchInput.value.toLowerCase();
       const from = dateFrom.value;
       const to = dateTo.value;
+      const min = parseFloat(amountMin.value) || 0;
+      const max = parseFloat(amountMax.value) || Infinity;
 
       currentFiltered = sorted.filter((t) => {
         if (tipo && t.data.clase !== tipo) return false;
@@ -128,6 +142,8 @@ export class TransaccionesView extends ItemView {
         }
         if (from && t.data.fecha < from) return false;
         if (to && t.data.fecha > to) return false;
+        if (amountMin.value && (t.data.monto || 0) < min) return false;
+        if (amountMax.value && (t.data.monto || 0) > max) return false;
         return true;
       });
 
@@ -141,7 +157,7 @@ export class TransaccionesView extends ItemView {
       const table = tableWrapper.createEl("table", { cls: "ordermanager-table" });
       const thead = table.createEl("thead");
       const headerRow = thead.createEl("tr");
-      for (const h of ["Fecha", "Tipo", "Monto", "Moneda", "Categoría", "Cliente/Prov.", "Medio de pago", "Descripción", ""]) {
+      for (const h of ["Fecha", "Tipo", "Monto", "Moneda", "Categoría", "Cliente/Prov.", "Medio de pago", "Descripción", "Ticket", ""]) {
         headerRow.createEl("th", { text: h });
       }
 
@@ -163,6 +179,18 @@ export class TransaccionesView extends ItemView {
         row.createEl("td", { text: d.cliente || d.proveedor || "—" });
         row.createEl("td", { text: d.medio_pago || "—" });
         row.createEl("td", { text: d.descripcion || "—" });
+
+        const ticketTd = row.createEl("td");
+        const ticketBtn = ticketTd.createEl("button", { text: "🎫" });
+        ticketBtn.style.cssText =
+          "padding:2px 6px;border:none;border-radius:4px;background:var(--background-secondary);cursor:pointer;font-size:1em;line-height:1;";
+        ticketBtn.setAttr("title", i18n("generateTicket"));
+        ticketBtn.onclick = async (e: MouseEvent) => {
+          e.stopPropagation();
+          const clientes = await this.plugin.dataManager.getClientes();
+          const cliente = clientes.find((c) => c.data.nombre === d.cliente);
+          new TicketModal(this.app, this.plugin, d, cliente?.data).open();
+        };
 
         const actionTd = row.createEl("td");
         const delBtn = actionTd.createEl("button", { text: "×" });
@@ -192,6 +220,8 @@ export class TransaccionesView extends ItemView {
     searchInput.oninput = render;
     dateFrom.onchange = render;
     dateTo.onchange = render;
+    amountMin.oninput = render;
+    amountMax.oninput = render;
 
     render();
   }
