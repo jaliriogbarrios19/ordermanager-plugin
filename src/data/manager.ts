@@ -69,7 +69,7 @@ export class DataManager {
 
     const dataFolders = ["Clientes", "Proveedores", "Transacciones", "Deudas", "Inventario"];
 
-    const collectBooks = (folder: TFolder): string[] =>
+    const collectFromIndex = (folder: TFolder): string[] =>
       folder.children
         .filter((c): c is TFolder => c instanceof TFolder)
         .filter((sub) =>
@@ -79,9 +79,39 @@ export class DataManager {
         )
         .map((f) => f.name);
 
+    const collectFromAdapter = async (basePath: string): Promise<string[]> => {
+      const books: string[] = [];
+      try {
+        const listing = await this.vault.adapter.list(basePath);
+        for (const folderPath of listing.folders) {
+          const name = (folderPath.startsWith(basePath + "/")
+            ? folderPath.slice(basePath.length + 1)
+            : folderPath).split("/")[0];
+          if (!name || books.includes(name)) continue;
+          try {
+            const subListing = await this.vault.adapter.list(`${basePath}/${name}`);
+            const hasData = dataFolders.some((df) =>
+              subListing.folders.some((f) => f === `${basePath}/${name}/${df}`)
+            );
+            if (hasData) books.push(name);
+          } catch {
+            /* skip */
+          }
+        }
+      } catch {
+        /* basePath not readable */
+      }
+      return books;
+    };
+
+    const mergeAndDedup = (a: string[], b: string[]): string[] =>
+      [...new Set([...a, ...b])];
+
     const baseRaw = this.vault.getAbstractFileByPath(configuredPath);
     if (baseRaw instanceof TFolder) {
-      return { books: collectBooks(baseRaw), actualBasePath: configuredPath };
+      const indexed = collectFromIndex(baseRaw);
+      const fromDisk = await collectFromAdapter(configuredPath);
+      return { books: mergeAndDedup(indexed, fromDisk), actualBasePath: configuredPath };
     }
 
     const root = this.vault.getRoot();
@@ -89,33 +119,17 @@ export class DataManager {
       for (const child of root.children) {
         if (child instanceof TFolder && child.name.toLowerCase() === configuredPath.toLowerCase()) {
           matchedPath = child.path;
-          return { books: collectBooks(child), actualBasePath: matchedPath };
+          const indexed = collectFromIndex(child);
+          const fromDisk = await collectFromAdapter(matchedPath);
+          return { books: mergeAndDedup(indexed, fromDisk), actualBasePath: matchedPath };
         }
       }
     }
 
     const exists = await this.vault.adapter.exists(configuredPath);
     if (exists) {
-      const listing = await this.vault.adapter.list(configuredPath);
-      const books: string[] = [];
-      for (const folderPath of listing.folders) {
-        const relative = folderPath.startsWith(configuredPath + "/")
-          ? folderPath.slice(configuredPath.length + 1)
-          : folderPath;
-        const name = relative.split("/")[0];
-        if (!name || books.includes(name)) continue;
-        const subPath = `${configuredPath}/${name}`;
-        try {
-          const subListing = await this.vault.adapter.list(subPath);
-          const hasData = dataFolders.some((df) =>
-            subListing.folders.some((f) => f === `${subPath}/${df}`)
-          );
-          if (hasData) books.push(name);
-        } catch {
-          /* subfolder not readable, skip */
-        }
-      }
-      return { books, actualBasePath: matchedPath };
+      const fromDisk = await collectFromAdapter(configuredPath);
+      return { books: fromDisk, actualBasePath: matchedPath };
     }
 
     return { books: [], actualBasePath: configuredPath };

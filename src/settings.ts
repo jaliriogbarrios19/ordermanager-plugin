@@ -20,19 +20,51 @@ export class OrderManagerSettingTab extends PluginSettingTab {
 
     containerEl.createEl("h2", { text: "OrderManager" });
 
+    const rootFolders = this.plugin.app.vault.getRoot().children
+      .filter((c): c is TFolder => c instanceof TFolder)
+      .map((f) => f.name)
+      .sort();
+
     const baseFolderSetting = new Setting(containerEl)
       .setName("Carpeta base")
-      .setDesc("Carpeta donde se almacenan los datos del plugin")
-      .addText((text) =>
+      .setDesc("Carpeta donde se almacenan los datos del plugin");
+
+    const currentBase = this.plugin.settings.baseFolder;
+    const matchesRoot = rootFolders.some((f) => f.toLowerCase() === currentBase.toLowerCase());
+
+    if (rootFolders.length > 0) {
+      baseFolderSetting.addDropdown((dd: DropdownComponent) => {
+        if (!matchesRoot && currentBase) {
+          dd.addOption(currentBase, `${currentBase} (actual)`);
+        }
+        dd.addOption("", "— Raíz del vault —");
+        for (const f of rootFolders) {
+          dd.addOption(f, f);
+        }
+        const selected = matchesRoot
+          ? rootFolders.find((f) => f.toLowerCase() === currentBase.toLowerCase()) || ""
+          : currentBase;
+        dd.setValue(selected);
+        dd.onChange(async (v) => {
+          if (v && v !== currentBase) {
+            this.plugin.settings.baseFolder = v;
+            await this.plugin.saveSettings();
+            this.plugin.dataManager.updateSettings(this.plugin.settings);
+          }
+        });
+      });
+    } else {
+      baseFolderSetting.addText((text) =>
         text
           .setPlaceholder("OrderManager")
-          .setValue(this.plugin.settings.baseFolder)
+          .setValue(currentBase)
           .onChange(async (value) => {
             this.plugin.settings.baseFolder = value || "OrderManager";
             await this.plugin.saveSettings();
             this.plugin.dataManager.updateSettings(this.plugin.settings);
           })
       );
+    }
 
     baseFolderSetting.addButton((btn) =>
       btn
