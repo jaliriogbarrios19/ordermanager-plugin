@@ -26,15 +26,28 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Attest main.js
-        uses: actions/attest-build-provenance@v2
+      - name: Attest build artifacts
+        uses: actions/attest@v4
         with:
-          subject-path: main.js
+          subject-path: |
+            main.js
+            styles.css
 
-      - name: Attest styles.css
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: styles.css
+      - name: Extract changelog
+        id: changelog
+        run: |
+          prev_tag=$(git tag --sort=-creatordate | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sed -n '2p')
+          if [ -n "$prev_tag" ]; then
+            echo "## Cambios desde $prev_tag" > release_notes.md
+            echo '```' >> release_notes.md
+            git log ${prev_tag}..HEAD --format='- %s' --no-merges >> release_notes.md
+            echo '```' >> release_notes.md
+          else
+            echo "## Primer release" > release_notes.md
+            echo '```' >> release_notes.md
+            git log --format='- %s' --no-merges >> release_notes.md
+            echo '```' >> release_notes.md
+          fi
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -43,5 +56,4 @@ jobs:
             main.js
             manifest.json
             styles.css
-          body: |
-            Build generado automáticamente desde CI.
+          body_path: release_notes.md
