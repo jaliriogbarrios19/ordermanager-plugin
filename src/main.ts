@@ -13,7 +13,6 @@ import { TransaccionModal } from "./modals/transaccion-modal";
 import { ClienteModal } from "./modals/cliente-modal";
 import { ProveedorModal } from "./modals/proveedor-modal";
 import { ProductoModal } from "./modals/producto-modal";
-import { DeudaModal } from "./modals/deuda-modal";
 
 import type { OrderManagerSettings } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
@@ -153,19 +152,6 @@ export default class OrderManagerPlugin extends Plugin {
       id: "open-deudas",
       name: "Abrir deudas",
       callback: () => this.activateView(VIEW_TYPE_DEUDAS),
-    });
-
-    this.addCommand({
-      id: "nueva-deuda",
-      name: "Nueva deuda",
-      callback: () => {
-        new DeudaModal(this.app, this, async () => {
-          const view = this.getExistingView(VIEW_TYPE_DEUDAS);
-          if (view instanceof DeudasView) await view.refresh();
-          const dash = this.getExistingView(VIEW_TYPE_DASHBOARD);
-          if (dash instanceof DashboardView) await dash.refresh();
-        }).open();
-      },
     });
 
     this.addCommand({

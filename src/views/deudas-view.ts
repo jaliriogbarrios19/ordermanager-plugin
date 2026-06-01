@@ -84,10 +84,6 @@ export class DeudasView extends ItemView {
       await this.refresh();
     };
 
-    toolbar.createEl("button", { text: i18n("newDebt"), cls: "" }).onclick = () => {
-      new DeudaModal(this.plugin.app, this.plugin, () => refreshAll()).open();
-    };
-
     toolbar.createEl("button", { text: "CSV", cls: "secondary" }).onclick = () => {
       const csv = exportDeudasCSV(sorted);
       downloadCSV(csv, `deudas-${new Date().toISOString().split("T")[0]}.csv`);

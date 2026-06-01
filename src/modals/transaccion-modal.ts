@@ -1,6 +1,6 @@
 import { App, Modal, Notice, Setting, DropdownComponent, TFile } from "obsidian";
 import type OrderManagerPlugin from "../main";
-import type { TransaccionData, TransaccionClase, DeudaData } from "../types";
+import type { TransaccionData, TransaccionClase, TipoOperacion, ModalidadPago, ProductoEnTransaccion, DeudaData } from "../types";
 import { MONEDA_SOURCES } from "../types";
 import { today, now } from "../utils/date";
 import { convertir } from "../utils/exchange";
@@ -19,7 +19,7 @@ export class TransaccionModal extends Modal {
   onSubmit: () => void;
   clientes: Array<{ nombre: string }> = [];
   proveedores: Array<{ nombre: string }> = [];
-  productos: Array<{ nombre: string }> = [];
+  productos: Array<{ nombre: string; precio_costo: number; precio_venta: number; stock: number }> = [];
   deudas: Array<{ file: TFile; data: DeudaData }> = [];
 
   private selectedDebtFile: TFile | null = null;
@@ -28,8 +28,14 @@ export class TransaccionModal extends Modal {
   private clienteDd!: DropdownComponent;
   private proveedorDd!: DropdownComponent;
   private descripcionInput!: HTMLTextAreaElement;
-  private agregarAInventario = false;
-  private nuevoProductoInput!: HTMLInputElement;
+  private selectedProducts: ProductoEnTransaccion[] = [];
+  private productosListEl!: HTMLElement;
+  private creditoContainer!: HTMLElement;
+  private categoriaContainer!: HTMLElement;
+  private deudaContainer!: HTMLElement;
+  private clienteContainer!: HTMLElement;
+  private proveedorContainer!: HTMLElement;
+  private productoTipoDd!: DropdownComponent;
 
   constructor(
     app: App,
@@ -47,19 +53,31 @@ export class TransaccionModal extends Modal {
       : {
           tipo: "transaccion",
           clase: "ingreso",
+          tipo_operacion: "venta",
+          modalidad_pago: "contado",
           monto: 0,
           moneda: plugin.settings.defaultCurrency,
           fecha: today(),
           categoria: "",
           cliente: "",
           proveedor: "",
+          producto: "",
+          productos: [],
           descripcion: "",
           medio_pago: "",
           comprobante: "",
           estado: "confirmado",
           deuda_ref: "",
+          monto_total: 0,
+          tasa_interes: 0,
+          cuotas: 1,
+          cuotas_pagadas: 0,
+          fecha_vencimiento: "",
           created: now(),
         };
+    if (existing?.productos) {
+      this.selectedProducts = [...existing.productos];
+    }
   }
 
   async onOpen() {
@@ -81,8 +99,17 @@ export class TransaccionModal extends Modal {
     }
 
     const form = contentEl.createDiv();
-    let categoriaContainer: HTMLElement;
-    let deudaContainer: HTMLElement;
+
+    const actualizarMontoDesdeProductos = () => {
+      const total = this.selectedProducts.reduce(
+        (sum, p) => sum + p.cantidad * p.precio_unitario,
+        0
+      );
+      if (total > 0) {
+        this.data.monto = total;
+        this.montoInput.value = String(total);
+      }
+    };
 
     const buildCategoriaDropdown = (container: HTMLElement) => {
       container.empty();
@@ -110,11 +137,10 @@ export class TransaccionModal extends Modal {
     };
 
     const buildDeudaSection = () => {
-      deudaContainer.empty();
+      this.deudaContainer.empty();
+      if (this.data.modalidad_pago !== "contado") return;
       const cat = this.data.categoria || "";
       if (!esCategoriaDeuda(cat)) return;
-
-      console.log("OrderManager: buildDeudaSection — clase:", this.data.clase, "categoria:", cat, "total deudas:", this.deudas.length);
 
       const claseFiltro = this.data.clase === "ingreso" ? "a_favor" : "en_contra";
       const deudasPendientes = this.deudas.filter(
@@ -124,19 +150,17 @@ export class TransaccionModal extends Modal {
           (d.data.monto_total || 0) > (d.data.monto_pagado || 0)
       );
 
-      console.log("OrderManager: deudasPendientes encontradas:", deudasPendientes.length, "filtro clase:", claseFiltro);
-
       if (deudasPendientes.length === 0) {
-        deudaContainer.createEl("p", {
+        this.deudaContainer.createEl("p", {
           text: t("noDebtsAvailable"),
           cls: "ordermanager-text-muted",
         });
-        (deudaContainer.querySelector("p") as HTMLElement).style.cssText =
+        (this.deudaContainer.querySelector("p") as HTMLElement).style.cssText =
           "font-size:0.85em;color:var(--text-muted);margin:8px 0;";
         return;
       }
 
-      new Setting(deudaContainer)
+      new Setting(this.deudaContainer)
         .setName(t("selectDebt"))
         .addDropdown((dd: DropdownComponent) => {
           dd.addOption("", "—");
@@ -168,7 +192,7 @@ export class TransaccionModal extends Modal {
             this.montoInput.value = String(restante);
 
             this.data.moneda = debt.moneda;
-            try { this.monedaDd.setValue(debt.moneda); } catch { /* moneda fuera de tasas */ }
+            try { this.monedaDd.setValue(debt.moneda); } catch { /* */ }
 
             if (debt.clase === "a_favor") {
               this.data.cliente = debt.cliente;
@@ -188,23 +212,245 @@ export class TransaccionModal extends Modal {
         });
     };
 
+    const buildProductosList = () => {
+      this.productosListEl.empty();
+      if (this.selectedProducts.length === 0) {
+        this.productosListEl.createEl("p", {
+          text: t("noProducts"),
+          cls: "ordermanager-text-muted",
+        });
+        return;
+      }
+
+      const table = this.productosListEl.createEl("table", { cls: "ordermanager-table" });
+      const tbody = table.createEl("tbody");
+      for (let i = 0; i < this.selectedProducts.length; i++) {
+        const p = this.selectedProducts[i];
+        const row = tbody.createEl("tr");
+        row.createEl("td", { text: p.nombre });
+        row.createEl("td", { text: `${p.cantidad} ud` });
+        row.createEl("td", { text: formatCurrency(p.precio_unitario, this.data.moneda || "USD") });
+        row.createEl("td", {
+          text: formatCurrency(p.cantidad * p.precio_unitario, this.data.moneda || "USD"),
+        });
+        const delTd = row.createEl("td");
+        const delBtn = delTd.createEl("button", { text: "×" });
+        delBtn.style.cssText =
+          "padding:2px 8px;border:none;border-radius:4px;background:var(--color-red);color:#fff;cursor:pointer;";
+        delBtn.onclick = () => {
+          this.selectedProducts.splice(i, 1);
+          this.data.productos = [...this.selectedProducts];
+          actualizarMontoDesdeProductos();
+          buildProductosList();
+        };
+      }
+    };
+
+    const buildCreditoSection = () => {
+      this.creditoContainer.empty();
+      if (this.data.modalidad_pago !== "credito") return;
+
+      const montoRow = this.creditoContainer.createDiv({ cls: "ordermanager-form-row" });
+      new Setting(montoRow.createDiv()).setName(t("totalAmount")).addText((text) => {
+        text.inputEl.type = "number";
+        text.inputEl.step = "0.01";
+        text.setValue(String(this.data.monto_total || this.data.monto || 0));
+        text.onChange((v) => {
+          this.data.monto_total = parseFloat(v) || 0;
+        });
+      });
+      new Setting(montoRow.createDiv()).setName(t("paidAmount")).addText((text) => {
+        text.inputEl.type = "number";
+        text.inputEl.step = "0.01";
+        text.setValue(String(this.data.monto || 0));
+        text.onChange((v) => {
+          this.data.monto = parseFloat(v) || 0;
+        });
+      });
+
+      const cuotasRow = this.creditoContainer.createDiv({ cls: "ordermanager-form-row" });
+      new Setting(cuotasRow.createDiv()).setName(t("installments")).addText((text) => {
+        text.inputEl.type = "number";
+        text.setValue(String(this.data.cuotas || 1));
+        text.onChange((v) => {
+          this.data.cuotas = parseInt(v) || 1;
+        });
+      });
+      new Setting(cuotasRow.createDiv()).setName(t("installmentsPaid")).addText((text) => {
+        text.inputEl.type = "number";
+        text.setValue(String(this.data.cuotas_pagadas || 0));
+        text.onChange((v) => {
+          this.data.cuotas_pagadas = parseInt(v) || 0;
+        });
+      });
+
+      new Setting(this.creditoContainer).setName(t("interestRate")).addText((text) => {
+        text.inputEl.type = "number";
+        text.inputEl.step = "0.01";
+        text.setValue(String(this.data.tasa_interes || 0));
+        text.onChange((v) => {
+          this.data.tasa_interes = parseFloat(v) || 0;
+        });
+      });
+
+      new Setting(this.creditoContainer).setName(t("dueDate")).addText((text) => {
+        text.inputEl.type = "date";
+        text.setValue(this.data.fecha_vencimiento || "");
+        text.onChange((v) => (this.data.fecha_vencimiento = v));
+      });
+    };
+
+    const buildClienteProveedor = () => {
+      this.clienteContainer.empty();
+      this.proveedorContainer.empty();
+
+      if (this.data.tipo_operacion === "venta") {
+        new Setting(this.clienteContainer)
+          .setName(t("clientDebtor"))
+          .addDropdown((dd: DropdownComponent) => {
+            dd.addOption("", "—");
+            for (const c of this.clientes) {
+              dd.addOption(c.nombre, c.nombre);
+            }
+            dd.setValue(this.data.cliente || "");
+            dd.onChange((v) => (this.data.cliente = v));
+            this.clienteDd = dd;
+          });
+      }
+
+      if (this.data.tipo_operacion === "compra") {
+        new Setting(this.proveedorContainer)
+          .setName(t("supplierCreditor"))
+          .addDropdown((dd: DropdownComponent) => {
+            dd.addOption("", "—");
+            for (const p of this.proveedores) {
+              dd.addOption(p.nombre, p.nombre);
+            }
+            dd.setValue(this.data.proveedor || "");
+            dd.onChange((v) => (this.data.proveedor = v));
+            this.proveedorDd = dd;
+          });
+      }
+    };
+
     new Setting(form)
-      .setName(t("type"))
+      .setName(t("operationType"))
       .addDropdown((dd: DropdownComponent) => {
-        dd.addOption("ingreso", t("income"));
-        dd.addOption("egreso", t("expense"));
-        dd.setValue(this.data.clase || "ingreso");
+        dd.addOption("compra", t("purchase"));
+        dd.addOption("venta", t("sale"));
+        dd.setValue(this.data.tipo_operacion || "venta");
         dd.onChange((v) => {
-          this.data.clase = v as TransaccionClase;
+          this.data.tipo_operacion = v as TipoOperacion;
+          this.data.clase = v === "compra" ? "egreso" : "ingreso";
           this.data.categoria = "";
           this.data.deuda_ref = "";
           this.selectedDebtFile = null;
-          buildCategoriaDropdown(categoriaContainer);
+          this.data.cliente = "";
+          this.data.proveedor = "";
+          buildCategoriaDropdown(this.categoriaContainer);
+          buildDeudaSection();
+          buildClienteProveedor();
+        });
+      });
+
+    new Setting(form)
+      .setName(t("paymentModality"))
+      .addDropdown((dd: DropdownComponent) => {
+        dd.addOption("contado", t("cash"));
+        dd.addOption("credito", t("credit"));
+        dd.setValue(this.data.modalidad_pago || "contado");
+        dd.onChange((v) => {
+          this.data.modalidad_pago = v as ModalidadPago;
+          this.data.deuda_ref = "";
+          this.selectedDebtFile = null;
+          buildCreditoSection();
           buildDeudaSection();
         });
       });
 
-    new Setting(form).setName(t("amount")).addText((text) => {
+    const productHeader = form.createDiv({ cls: "ordermanager-section-title" });
+    productHeader.style.cssText = "margin-top:16px;font-weight:600;";
+    productHeader.createSpan({ text: t("products") });
+
+    const addRow = form.createDiv({ cls: "ordermanager-form-row" });
+    let productoSelectDd!: DropdownComponent;
+    let cantidadInput!: HTMLInputElement;
+    let precioInput!: HTMLInputElement;
+
+    new Setting(addRow.createDiv()).setName(t("product_label"))
+      .addDropdown((dd: DropdownComponent) => {
+        dd.addOption("", "—");
+        for (const p of this.productos) {
+          dd.addOption(p.nombre, p.nombre);
+        }
+        productoSelectDd = dd;
+      });
+
+    new Setting(addRow.createDiv()).setName(t("quantity"))
+      .addText((text) => {
+        text.inputEl.type = "number";
+        text.inputEl.step = "1";
+        text.setValue("1");
+        cantidadInput = text.inputEl;
+      });
+
+    new Setting(addRow.createDiv()).setName(t("unitPrice"))
+      .addText((text) => {
+        text.inputEl.type = "number";
+        text.inputEl.step = "0.01";
+        text.setValue("0");
+        precioInput = text.inputEl;
+      });
+
+    productoSelectDd.onChange((nombre) => {
+      if (!nombre) return;
+      const match = this.productos.find((p) => p.nombre === nombre);
+      if (match) {
+        const precio = this.data.tipo_operacion === "venta"
+          ? match.precio_venta
+          : match.precio_costo;
+        precioInput.value = String(precio || 0);
+      }
+    });
+
+    const addProductBtn = addRow.createDiv().createEl("button", {
+      text: `+ ${t("addProduct")}`,
+    });
+    addProductBtn.style.cssText =
+      "padding:6px 12px;border:none;border-radius:4px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;font-weight:500;";
+
+    addProductBtn.onclick = () => {
+      const nombre = (productoSelectDd as any).selectEl?.value || "";
+      const cantidad = parseInt(cantidadInput.value) || 0;
+      const precio = parseFloat(precioInput.value) || 0;
+      if (!nombre || cantidad <= 0 || precio <= 0) {
+        new Notice("Completá producto, cantidad y precio.");
+        return;
+      }
+
+      const existing = this.selectedProducts.find(
+        (p) => p.nombre.toLowerCase() === nombre.toLowerCase()
+      );
+      if (existing) {
+        existing.cantidad += cantidad;
+      } else {
+        this.selectedProducts.push({ nombre, cantidad, precio_unitario: precio });
+      }
+
+      this.data.productos = [...this.selectedProducts];
+      actualizarMontoDesdeProductos();
+      buildProductosList();
+
+      try { productoSelectDd.setValue(""); } catch { /* */ }
+      cantidadInput.value = "1";
+      precioInput.value = "0";
+    };
+
+    this.productosListEl = form.createDiv();
+    this.productosListEl.style.cssText = "margin-bottom:12px;";
+    buildProductosList();
+
+    const montoSetting = new Setting(form).setName(t("amount")).addText((text) => {
       text.inputEl.type = "number";
       text.inputEl.step = "0.01";
       text.setValue(String(this.data.monto || 0)).onChange((v) => {
@@ -236,89 +482,18 @@ export class TransaccionModal extends Modal {
       text.setValue(this.data.fecha || today()).onChange((v) => (this.data.fecha = v));
     });
 
-    categoriaContainer = form.createDiv();
-    buildCategoriaDropdown(categoriaContainer);
+    this.categoriaContainer = form.createDiv();
+    buildCategoriaDropdown(this.categoriaContainer);
 
-    deudaContainer = form.createDiv();
+    this.deudaContainer = form.createDiv();
     buildDeudaSection();
 
-    new Setting(form)
-      .setName(t("clientDebtor"))
-      .addDropdown((dd: DropdownComponent) => {
-        dd.addOption("", "—");
-        for (const c of this.clientes) {
-          dd.addOption(c.nombre, c.nombre);
-        }
-        dd.setValue(this.data.cliente || "");
-        dd.onChange((v) => (this.data.cliente = v));
-        this.clienteDd = dd;
-      });
+    this.clienteContainer = form.createDiv();
+    this.proveedorContainer = form.createDiv();
+    buildClienteProveedor();
 
-    new Setting(form)
-      .setName(t("supplierCreditor"))
-      .addDropdown((dd: DropdownComponent) => {
-        dd.addOption("", "—");
-        for (const p of this.proveedores) {
-          dd.addOption(p.nombre, p.nombre);
-        }
-        dd.setValue(this.data.proveedor || "");
-        dd.onChange((v) => (this.data.proveedor = v));
-        this.proveedorDd = dd;
-      });
-
-    new Setting(form)
-      .setName(t("product"))
-      .addDropdown((dd: DropdownComponent) => {
-        dd.addOption("", "—");
-        for (const p of this.productos) {
-          dd.addOption(p.nombre, p.nombre);
-        }
-        dd.setValue(this.data.producto || "");
-        dd.onChange((v) => {
-          this.data.producto = v;
-          buildInventarioSection();
-        });
-      });
-
-    const inventarioContainer = form.createDiv();
-
-    const buildInventarioSection = () => {
-      inventarioContainer.empty();
-      if (this.data.clase !== "egreso") {
-        this.agregarAInventario = false;
-        return;
-      }
-
-      const prodExists = this.data.producto && this.productos.some(
-        (p) => p.nombre.toLowerCase() === (this.data.producto || "").toLowerCase()
-      );
-
-      new Setting(inventarioContainer)
-        .setName(t("addToInventory"))
-        .setDesc(prodExists ? t("productAlreadyInInventory") : t("addToInventoryDesc"))
-        .addToggle((toggle) => {
-          toggle.setValue(this.agregarAInventario);
-          toggle.onChange((v) => {
-            this.agregarAInventario = v;
-            if (v && (!this.data.producto || prodExists)) {
-              this.data.producto = "";
-            }
-            buildInventarioSection();
-          });
-        });
-
-      if (this.agregarAInventario) {
-        new Setting(inventarioContainer)
-          .setName(t("productName"))
-          .addText((text) => {
-            text.setPlaceholder("Nombre del producto")
-              .setValue(this.data.producto || "")
-              .onChange((v) => (this.data.producto = v));
-            this.nuevoProductoInput = text.inputEl;
-          });
-      }
-    };
-    buildInventarioSection();
+    this.creditoContainer = form.createDiv();
+    buildCreditoSection();
 
     new Setting(form).setName(t("description")).addTextArea((text) => {
       text.setValue(this.data.descripcion || "").onChange((v) => (this.data.descripcion = v));
@@ -464,54 +639,108 @@ export class TransaccionModal extends Modal {
       new TicketModal(this.app, this.plugin, this.data as TransaccionData, cliente?.data).open();
     };
     actions.createEl("button", { text: t("save"), cls: "primary" }).onclick = async () => {
-      if (!(this.data.monto && this.data.monto > 0)) {
+      if (!(this.data.monto && this.data.monto > 0) && this.data.modalidad_pago !== "credito") {
         new Notice(t("amountRequired"));
         return;
       }
 
-      if (this.agregarAInventario && this.data.producto && this.data.clase === "egreso") {
-        const prodExists = this.productos.some(
-          (p) => p.nombre.toLowerCase() === this.data.producto!.toLowerCase()
-        );
-        if (!prodExists) {
-          await this.plugin.dataManager.saveProducto({
-            nombre: this.data.producto,
-            precio_costo: this.data.monto,
-            moneda: this.data.moneda || this.plugin.settings.defaultCurrency,
-            categoria: this.data.categoria || "General",
-            proveedor: this.data.proveedor || "",
-            stock: 0,
-            stock_minimo: 0,
-            precio_venta: 0,
-            descripcion: "",
-          });
-        }
-      }
+      this.data.productos = [...this.selectedProducts];
+
       const ref = this.plugin.settings.tasaReferencia || "USD";
       const rates = this.plugin.settings.tasasCambio || { USD: 1 };
-      this.data.monto_referencia = convertir(this.data.monto || 0, this.data.moneda || "USD", rates, ref);
 
-      await this.plugin.dataManager.saveTransaccion(
-        this.data,
-        this.existingFile || undefined
-      );
+      if (this.data.modalidad_pago === "credito") {
+        const montoTotal = this.data.monto_total || this.data.monto || 0;
+        const montoPagado = this.data.monto || 0;
 
-      if (this.data.deuda_ref && this.selectedDebtFile) {
-        const deudaFile = this.selectedDebtFile;
-        try {
-          const freshDeudas = await this.plugin.dataManager.getDeudas();
-          const fresh = freshDeudas.find((d) => d.file.path === deudaFile.path);
-          if (fresh) {
-            const debt = fresh.data;
-            const newPagado = (debt.monto_pagado || 0) + (this.data.monto || 0);
-            const updated = newPagado >= (debt.monto_total || 0) ? "pagada" : debt.estado;
-            await this.plugin.dataManager.saveDeuda(
-              { ...debt, monto_pagado: newPagado, estado: updated },
-              deudaFile
-            );
+        if (montoTotal <= 0) {
+          new Notice(t("totalAmountRequired"));
+          return;
+        }
+
+        const deudaClase = this.data.clase === "ingreso" ? "a_favor" : "en_contra";
+        let deudaFile: TFile | null = null;
+
+        const deudaData: Partial<DeudaData> = {
+          tipo: "deuda",
+          clase: deudaClase,
+          deuda_tipo: "dinero",
+          monto_total: montoTotal,
+          monto_pagado: montoPagado,
+          moneda: this.data.moneda || this.plugin.settings.defaultCurrency,
+          fecha_inicio: this.data.fecha || today(),
+          fecha_vencimiento: this.data.fecha_vencimiento || "",
+          cliente: this.data.cliente || "",
+          proveedor: this.data.proveedor || "",
+          descripcion: this.data.descripcion || "",
+          estado: montoPagado >= montoTotal ? "pagada" : "pendiente",
+          cuotas: this.data.cuotas || 1,
+          cuotas_pagadas: this.data.cuotas_pagadas || 0,
+          tasa_interes: this.data.tasa_interes || 0,
+        };
+
+        deudaFile = await this.plugin.dataManager.saveDeuda(deudaData);
+
+        if (this.selectedProducts.length > 0) {
+          await this.plugin.dataManager.actualizarInventario({
+            clase: this.data.clase,
+            productos: this.selectedProducts,
+          });
+        }
+
+        if (montoPagado > 0) {
+          this.data.monto = montoPagado;
+          this.data.monto_referencia = convertir(montoPagado, this.data.moneda || "USD", rates, ref);
+          this.data.deuda_ref = deudaFile.path;
+          this.data.monto_total = montoTotal;
+
+          const saveData: Partial<TransaccionData> = {
+            ...this.data,
+            productos: [],
+          };
+
+          await this.plugin.dataManager.saveTransaccion(
+            saveData,
+            this.existingFile || undefined
+          );
+        }
+      } else {
+        if (this.selectedProducts.length > 0) {
+          this.data.monto = this.selectedProducts.reduce(
+            (sum, p) => sum + p.cantidad * p.precio_unitario,
+            0
+          );
+        }
+
+        this.data.monto_referencia = convertir(
+          this.data.monto || 0,
+          this.data.moneda || "USD",
+          rates,
+          ref
+        );
+
+        await this.plugin.dataManager.saveTransaccion(
+          this.data,
+          this.existingFile || undefined
+        );
+
+        if (this.data.deuda_ref && this.selectedDebtFile) {
+          const deudaFile = this.selectedDebtFile;
+          try {
+            const freshDeudas = await this.plugin.dataManager.getDeudas();
+            const fresh = freshDeudas.find((d) => d.file.path === deudaFile.path);
+            if (fresh) {
+              const debt = fresh.data;
+              const newPagado = (debt.monto_pagado || 0) + (this.data.monto || 0);
+              const updated = newPagado >= (debt.monto_total || 0) ? "pagada" : debt.estado;
+              await this.plugin.dataManager.saveDeuda(
+                { ...debt, monto_pagado: newPagado, estado: updated },
+                deudaFile
+              );
+            }
+          } catch (err) {
+            console.error("OrderManager: error al actualizar deuda vinculada", err);
           }
-        } catch (err) {
-          console.error("OrderManager: error al actualizar deuda vinculada", err);
         }
       }
 

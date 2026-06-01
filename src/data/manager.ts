@@ -336,7 +336,12 @@ export class DataManager {
         const content = await this.vault.cachedRead(file);
         const parsed = parseFrontmatterFromContent(content);
         if (parsed.frontmatter.tipo === "transaccion") {
-          results.push({ file, data: parsed.frontmatter as unknown as TransaccionData });
+          const data = parsed.frontmatter as unknown as TransaccionData;
+          if (typeof data.productos === "string") {
+            try { data.productos = JSON.parse(data.productos as string); } catch { data.productos = []; }
+          }
+          if (!data.productos) data.productos = [];
+          results.push({ file, data });
         }
       } catch {
         // skip
@@ -360,19 +365,52 @@ export class DataManager {
       .replace(/[\\/:*?"<>|]/g, "-");
     const filename = `${prefix}-${datePart}-${sanitizedDesc}`;
 
+    let result: TFile;
+
     if (existingFile) {
       const updated: Record<string, unknown> = { ...data, tipo: "transaccion" };
+      if (Array.isArray(updated.productos)) {
+        updated.productos = JSON.stringify(updated.productos);
+      }
       await this.updateFile(existingFile, updated);
-      return existingFile;
+      result = existingFile;
+    } else {
+      const content = transaccionTemplate({
+        ...data,
+        created: nowStr,
+        updated: nowStr,
+      } as Partial<TransaccionData>);
+
+      result = await this.saveNewFile(this.basePath("Transacciones"), filename, content);
     }
 
-    const content = transaccionTemplate({
-      ...data,
-      created: nowStr,
-      updated: nowStr,
-    } as Partial<TransaccionData>);
+    await this.actualizarInventario(data);
 
-    return await this.saveNewFile(this.basePath("Transacciones"), filename, content);
+    return result;
+  }
+
+  async actualizarInventario(data: Partial<TransaccionData>): Promise<void> {
+    const productos = data.productos;
+    if (!productos || productos.length === 0) return;
+
+    const inventario = await this.getProductos();
+    const esVenta = data.clase === "ingreso";
+
+    for (const item of productos) {
+      const match = inventario.find(
+        (p) => p.data.nombre.toLowerCase() === item.nombre.toLowerCase()
+      );
+      if (!match) continue;
+
+      const nuevoStock = esVenta
+        ? (match.data.stock || 0) - item.cantidad
+        : (match.data.stock || 0) + item.cantidad;
+
+      await this.saveProducto(
+        { ...match.data, stock: Math.max(0, nuevoStock) },
+        match.file
+      );
+    }
   }
 
   // ============= DEUDAS =============

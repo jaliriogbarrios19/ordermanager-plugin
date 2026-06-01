@@ -23,10 +23,20 @@ export interface ProveedorData {
 }
 
 export type TransaccionClase = "ingreso" | "egreso";
+export type TipoOperacion = "compra" | "venta";
+export type ModalidadPago = "contado" | "credito";
+
+export interface ProductoEnTransaccion {
+  nombre: string;
+  cantidad: number;
+  precio_unitario: number;
+}
 
 export interface TransaccionData {
   tipo: "transaccion";
   clase: TransaccionClase;
+  tipo_operacion: TipoOperacion;
+  modalidad_pago: ModalidadPago;
   monto: number;
   monto_referencia: number;
   moneda: string;
@@ -35,11 +45,17 @@ export interface TransaccionData {
   cliente: string;
   proveedor: string;
   producto: string;
+  productos: ProductoEnTransaccion[];
   descripcion: string;
   medio_pago: string;
   comprobante: string;
   estado: string;
   deuda_ref: string;
+  monto_total: number;
+  tasa_interes: number;
+  cuotas: number;
+  cuotas_pagadas: number;
+  fecha_vencimiento: string;
   created: string;
   updated: string;
   recurrente: string;

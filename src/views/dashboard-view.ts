@@ -12,9 +12,7 @@ import { VIEW_TYPE_INVENTARIO } from "./inventario-view";
 import { VIEW_TYPE_DEUDAS } from "./deudas-view";
 import { TransaccionModal } from "../modals/transaccion-modal";
 import { ClienteModal } from "../modals/cliente-modal";
-import { ProveedorModal } from "../modals/proveedor-modal";
 import { ProductoModal } from "../modals/producto-modal";
-import { DeudaModal } from "../modals/deuda-modal";
 
 export const VIEW_TYPE_DASHBOARD = "ordermanager-dashboard";
 
@@ -426,11 +424,18 @@ export class DashboardView extends ItemView {
       topProductsEl.empty();
       const productSales = new Map<string, { count: number; total: number }>();
       for (const t of transacciones) {
-        if (t.data.clase === "ingreso" && t.data.producto && t.data.fecha >= desde && t.data.fecha <= hasta) {
-          const existing = productSales.get(t.data.producto) || { count: 0, total: 0 };
-          existing.count++;
-          existing.total += t.data.monto || 0;
-          productSales.set(t.data.producto, existing);
+        if (t.data.clase === "ingreso" && t.data.fecha >= desde && t.data.fecha <= hasta) {
+          const prods = t.data.productos && t.data.productos.length > 0
+            ? t.data.productos
+            : t.data.producto
+              ? [{ nombre: t.data.producto, cantidad: 1, precio_unitario: t.data.monto || 0 }]
+              : [];
+          for (const p of prods) {
+            const existing = productSales.get(p.nombre) || { count: 0, total: 0 };
+            existing.count += p.cantidad || 1;
+            existing.total += (p.cantidad || 1) * (p.precio_unitario || 0);
+            productSales.set(p.nombre, existing);
+          }
         }
       }
 
@@ -515,15 +520,12 @@ export class DashboardView extends ItemView {
 
     container.createEl("div", { cls: "ordermanager-section-title", text: i18n("quickActions") });
     const quickBar = container.createDiv({ cls: "ordermanager-toolbar" });
-    quickBar.createEl("button", { text: `+ ${i18n("income")}` }).onclick = () => {
+    quickBar.createEl("button", { text: i18n("newTransactionBtn") }).onclick = () => {
       new TransaccionModal(this.plugin.app, this.plugin, () => this.refresh(), {
         clase: "ingreso",
-        moneda: currency,
-      } as any).open();
-    };
-    quickBar.createEl("button", { text: `+ ${i18n("expense")}` }).onclick = () => {
-      new TransaccionModal(this.plugin.app, this.plugin, () => this.refresh(), {
-        clase: "egreso",
+        tipo_operacion: "venta",
+        modalidad_pago: "contado",
+        productos: [],
         moneda: currency,
       } as any).open();
     };
@@ -532,9 +534,6 @@ export class DashboardView extends ItemView {
     };
     quickBar.createEl("button", { text: i18n("newProductTitle") }).onclick = () => {
       new ProductoModal(this.plugin.app, this.plugin, () => this.refresh()).open();
-    };
-    quickBar.createEl("button", { text: i18n("newDebtTitle") }).onclick = () => {
-      new DeudaModal(this.plugin.app, this.plugin, () => this.refresh()).open();
     };
 
     renderPeriodData();

@@ -55,7 +55,24 @@ export class TicketModal extends Modal {
 
     this.addField(fields, t("date"), formatDate(d.fecha));
     this.addField(fields, t("clientDebtor"), d.cliente || c?.nombre || "\u2014");
-    this.addField(fields, t("product"), d.producto || "\u2014");
+    const productos = d.productos && d.productos.length > 0
+      ? d.productos
+      : d.producto
+        ? [{ nombre: d.producto, cantidad: 1, precio_unitario: d.monto || 0 }]
+        : [];
+    if (productos.length > 0) {
+      const prodHeader = fields.createDiv();
+      prodHeader.style.cssText = "margin-top:4px;";
+      prodHeader.createSpan({
+        text: t("products"),
+        cls: "ordermanager-text-muted",
+      });
+      const prodLabel = prodHeader.querySelector(".ordermanager-text-muted") as HTMLElement;
+      if (prodLabel) prodLabel.style.cssText = "color:var(--text-muted);font-size:0.85em;";
+      for (const p of productos) {
+        this.addField(fields, `  ${p.nombre}`, `${p.cantidad} × ${formatCurrency(p.precio_unitario, d.moneda)}`);
+      }
+    }
     this.addField(fields, t("description"), d.descripcion || "\u2014");
 
     const amountRow = fields.createDiv();
@@ -105,11 +122,19 @@ export class TicketModal extends Modal {
 
   private getTicketText(): string {
     const d = this.transaccion;
+    const productos = d.productos && d.productos.length > 0
+      ? d.productos
+      : d.producto
+        ? [{ nombre: d.producto, cantidad: 1, precio_unitario: d.monto || 0 }]
+        : [];
+    const prodLines = productos.map(
+      (p) => `  ${p.nombre}: ${p.cantidad} × ${formatCurrency(p.precio_unitario, d.moneda)}`
+    );
     return [
       "OrderManager \u2014 Ticket",
       `${t("date")}: ${formatDate(d.fecha)}`,
       `${t("clientDebtor")}: ${d.cliente || "\u2014"}`,
-      `${t("product")}: ${d.producto || "\u2014"}`,
+      ...(productos.length > 0 ? [`${t("products")}:`, ...prodLines] : [`${t("product")}: ${d.producto || "\u2014"}`]),
       `${t("description")}: ${d.descripcion || "\u2014"}`,
       `${t("amount")}: ${formatCurrency(d.monto || 0, d.moneda)}`,
       `${t("paymentMethod")}: ${d.medio_pago || "\u2014"}`,
@@ -122,13 +147,28 @@ export class TicketModal extends Modal {
 
   private async generateImage(): Promise<Blob> {
     const d = this.transaccion;
-    const lines = [
+    const productos = d.productos && d.productos.length > 0
+      ? d.productos
+      : d.producto
+        ? [{ nombre: d.producto, cantidad: 1, precio_unitario: d.monto || 0 }]
+        : [];
+    const prodImgLines = productos.map((p) => ({
+      text: `  ${p.nombre}: ${p.cantidad} × ${formatCurrency(p.precio_unitario, d.moneda)}`,
+      font: "12px -apple-system, sans-serif",
+      center: false as const,
+    }));
+    const lines: Array<{ text: string; font: string; center: boolean }> = [
       { text: "OrderManager", font: "bold 18px -apple-system, sans-serif", center: true },
       { text: t("ticketTitle"), font: "14px -apple-system, sans-serif", center: true },
       { text: "", font: "10px -apple-system, sans-serif", center: false },
       { text: `${t("date")}: ${formatDate(d.fecha)}`, font: "13px -apple-system, sans-serif", center: false },
       { text: `${t("clientDebtor")}: ${d.cliente || "\u2014"}`, font: "13px -apple-system, sans-serif", center: false },
-      { text: `${t("product")}: ${d.producto || "\u2014"}`, font: "13px -apple-system, sans-serif", center: false },
+      ...(productos.length > 0
+        ? [
+            { text: t("products"), font: "12px -apple-system, sans-serif", center: false as const },
+            ...prodImgLines,
+          ]
+        : [{ text: `${t("product")}: ${d.producto || "\u2014"}`, font: "13px -apple-system, sans-serif", center: false as const }]),
       { text: `${t("description")}: ${d.descripcion || "\u2014"}`, font: "13px -apple-system, sans-serif", center: false },
       { text: `${t("amount")}: ${formatCurrency(d.monto || 0, d.moneda)}`, font: "bold 15px -apple-system, sans-serif", center: false },
       { text: `${t("paymentMethod")}: ${d.medio_pago || "\u2014"}`, font: "13px -apple-system, sans-serif", center: false },

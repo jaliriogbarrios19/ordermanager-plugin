@@ -163,6 +163,20 @@ const es: TranslationDict = {
   downloadImage: "Descargar imagen",
   ticketSaved: "Ticket descargado",
   thankYou: "Gracias por su compra",
+  operationType: "Tipo de operación",
+  purchase: "Compra",
+  sale: "Venta",
+  paymentModality: "Modalidad de pago",
+  cash: "De contado",
+  credit: "A crédito",
+  products: "Productos",
+  addProduct: "Agregar",
+  unitPrice: "Precio unit.",
+  removeProduct: "Quitar",
+  totalProducts: "Total productos",
+  stockUpdated: "Stock actualizado",
+  transaction: "Transacción",
+  newTransactionBtn: "+ Transacción",
 };
 
 const en: TranslationDict = {
@@ -311,6 +325,20 @@ const en: TranslationDict = {
   downloadImage: "Download image",
   ticketSaved: "Ticket downloaded",
   thankYou: "Thank you for your purchase",
+  operationType: "Operation type",
+  purchase: "Purchase",
+  sale: "Sale",
+  paymentModality: "Payment method",
+  cash: "Cash",
+  credit: "Credit",
+  products: "Products",
+  addProduct: "Add",
+  unitPrice: "Unit price",
+  removeProduct: "Remove",
+  totalProducts: "Total products",
+  stockUpdated: "Stock updated",
+  transaction: "Transaction",
+  newTransactionBtn: "+ Transaction",
 };
 
 const pt: TranslationDict = {
@@ -459,6 +487,20 @@ const pt: TranslationDict = {
   downloadImage: "Baixar imagem",
   ticketSaved: "Ticket baixado",
   thankYou: "Obrigado pela compra",
+  operationType: "Tipo de operação",
+  purchase: "Compra",
+  sale: "Venda",
+  paymentModality: "Forma de pagamento",
+  cash: "À vista",
+  credit: "A prazo",
+  products: "Produtos",
+  addProduct: "Adicionar",
+  unitPrice: "Preço unit.",
+  removeProduct: "Remover",
+  totalProducts: "Total de produtos",
+  stockUpdated: "Estoque atualizado",
+  transaction: "Transação",
+  newTransactionBtn: "+ Transação",
 };
 
 const allTranslations: Record<SupportedLang, TranslationDict> = {

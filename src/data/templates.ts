@@ -36,9 +36,14 @@ export function proveedorTemplate(data: Partial<ProveedorData>): string {
 
 export function transaccionTemplate(data: Partial<TransaccionData>): string {
   const monto = data.monto || 0;
+  const productos = data.productos && data.productos.length > 0
+    ? JSON.stringify(data.productos)
+    : "";
   const fm: Record<string, unknown> = {
     tipo: "transaccion",
     clase: data.clase || "ingreso",
+    tipo_operacion: data.tipo_operacion || "venta",
+    modalidad_pago: data.modalidad_pago || "contado",
     monto: monto,
     monto_referencia: data.monto_referencia ?? 0,
     moneda: data.moneda || "USD",
@@ -46,11 +51,18 @@ export function transaccionTemplate(data: Partial<TransaccionData>): string {
     categoria: data.categoria || "",
     cliente: data.cliente || "",
     proveedor: data.proveedor || "",
+    producto: data.producto || "",
+    productos: productos,
     descripcion: data.descripcion || "",
     medio_pago: data.medio_pago || "",
     comprobante: data.comprobante || "",
     estado: data.estado || "confirmado",
     deuda_ref: data.deuda_ref || "",
+    monto_total: data.monto_total ?? 0,
+    tasa_interes: data.tasa_interes ?? 0,
+    cuotas: data.cuotas ?? 1,
+    cuotas_pagadas: data.cuotas_pagadas ?? 0,
+    fecha_vencimiento: data.fecha_vencimiento || "",
     created: data.created || now(),
     updated: data.updated || now(),
     recurrente: data.recurrente || "",
