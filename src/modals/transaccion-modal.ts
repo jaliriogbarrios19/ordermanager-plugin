@@ -376,6 +376,14 @@ export class TransaccionModal extends Modal {
     let productoSelectDd!: DropdownComponent;
     let cantidadInput!: HTMLInputElement;
     let precioInput!: HTMLInputElement;
+    let selectedProductName = "";
+
+    const resetProductSelection = () => {
+      selectedProductName = "";
+      try { productoSelectDd?.setValue(""); } catch { /* */ }
+      cantidadInput.value = "1";
+      precioInput.value = "0";
+    };
 
     new Setting(addRow.createDiv()).setName(t("product_label"))
       .addDropdown((dd: DropdownComponent) => {
@@ -403,6 +411,7 @@ export class TransaccionModal extends Modal {
       });
 
     productoSelectDd.onChange((nombre) => {
+      selectedProductName = nombre || "";
       if (!nombre) return;
       const match = this.productos.find((p) => p.nombre === nombre);
       if (match) {
@@ -420,7 +429,7 @@ export class TransaccionModal extends Modal {
       "padding:6px 12px;border:none;border-radius:4px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;font-weight:500;";
 
     addProductBtn.onclick = () => {
-      const nombre = (productoSelectDd as any).selectEl?.value || "";
+      const nombre = selectedProductName;
       const cantidad = parseInt(cantidadInput.value) || 0;
       const precio = parseFloat(precioInput.value) || 0;
       if (!nombre || cantidad <= 0 || precio <= 0) {
@@ -441,9 +450,7 @@ export class TransaccionModal extends Modal {
       actualizarMontoDesdeProductos();
       buildProductosList();
 
-      try { productoSelectDd.setValue(""); } catch { /* */ }
-      cantidadInput.value = "1";
-      precioInput.value = "0";
+      resetProductSelection();
     };
 
     this.productosListEl = form.createDiv();
@@ -696,7 +703,7 @@ export class TransaccionModal extends Modal {
 
           const saveData: Partial<TransaccionData> = {
             ...this.data,
-            productos: [],
+            productos: [...this.selectedProducts],
           };
 
           await this.plugin.dataManager.saveTransaccion(
