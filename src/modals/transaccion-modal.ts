@@ -7,6 +7,7 @@ import { convertir } from "../utils/exchange";
 import { formatCurrency } from "../utils/currency";
 import { t } from "../i18n";
 import { TicketModal } from "./ticket-modal";
+import { ProductoModal } from "./producto-modal";
 
 function esCategoriaDeuda(cat: string): boolean {
   return /deuda/i.test(cat);
@@ -228,7 +229,7 @@ export class TransaccionModal extends Modal {
         const p = this.selectedProducts[i];
         const row = tbody.createEl("tr");
         row.createEl("td", { text: p.nombre });
-        row.createEl("td", { text: `${p.cantidad} ud` });
+        row.createEl("td", { text: `${parseFloat(p.cantidad.toFixed(3))} ud` });
         row.createEl("td", { text: formatCurrency(p.precio_unitario, this.data.moneda || "USD") });
         row.createEl("td", {
           text: formatCurrency(p.cantidad * p.precio_unitario, this.data.moneda || "USD"),
@@ -363,6 +364,10 @@ export class TransaccionModal extends Modal {
           this.data.modalidad_pago = v as ModalidadPago;
           this.data.deuda_ref = "";
           this.selectedDebtFile = null;
+          if (v === "credito" && !this.data.monto_total && this.data.monto) {
+            this.data.monto_total = this.data.monto;
+            this.data.monto = 0;
+          }
           buildCreditoSection();
           buildDeudaSection();
         });
@@ -391,13 +396,14 @@ export class TransaccionModal extends Modal {
         for (const p of this.productos) {
           dd.addOption(p.nombre, p.nombre);
         }
+        dd.addOption("__new__", "➕ Nuevo producto...");
         productoSelectDd = dd;
       });
 
     new Setting(addRow.createDiv()).setName(t("quantity"))
       .addText((text) => {
         text.inputEl.type = "number";
-        text.inputEl.step = "1";
+        text.inputEl.step = "0.001";
         text.setValue("1");
         cantidadInput = text.inputEl;
       });
@@ -410,7 +416,21 @@ export class TransaccionModal extends Modal {
         precioInput = text.inputEl;
       });
 
-    productoSelectDd.onChange((nombre) => {
+    productoSelectDd.onChange(async (nombre) => {
+      if (nombre === "__new__") {
+        try { productoSelectDd.setValue(""); } catch { /* */ }
+        new ProductoModal(this.app, this.plugin, async () => {
+          this.productos = (await this.plugin.dataManager.getProductos()).map((p) => p.data);
+          const sel = productoSelectDd.selectEl;
+          sel.empty();
+          sel.createEl("option", { value: "", text: "—" });
+          for (const p of this.productos) {
+            sel.createEl("option", { value: p.nombre, text: p.nombre });
+          }
+          sel.createEl("option", { value: "__new__", text: "➕ Nuevo producto..." });
+        }).open();
+        return;
+      }
       selectedProductName = nombre || "";
       if (!nombre) return;
       const match = this.productos.find((p) => p.nombre === nombre);
@@ -430,7 +450,7 @@ export class TransaccionModal extends Modal {
 
     addProductBtn.onclick = () => {
       const nombre = selectedProductName;
-      const cantidad = parseInt(cantidadInput.value) || 0;
+      const cantidad = parseFloat(cantidadInput.value) || 0;
       const precio = parseFloat(precioInput.value) || 0;
       if (!nombre || cantidad <= 0 || precio <= 0) {
         new Notice("Completá producto, cantidad y precio.");

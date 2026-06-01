@@ -1,6 +1,6 @@
 {
   "name": "ordermanager",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Gestión contable para emprendimientos: clientes, proveedores, inventario, transacciones y deudas",
   "main": "main.js",
   "scripts": {
