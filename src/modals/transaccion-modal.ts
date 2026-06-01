@@ -107,7 +107,11 @@ export class TransaccionModal extends Modal {
         0
       );
       if (total > 0) {
-        this.data.monto = total;
+        if (this.data.modalidad_pago === "credito") {
+          this.data.monto_total = total;
+        } else {
+          this.data.monto = total;
+        }
         this.montoInput.value = String(total);
       }
     };
@@ -251,16 +255,14 @@ export class TransaccionModal extends Modal {
       this.creditoContainer.empty();
       if (this.data.modalidad_pago !== "credito") return;
 
-      const montoRow = this.creditoContainer.createDiv({ cls: "ordermanager-form-row" });
-      new Setting(montoRow.createDiv()).setName(t("totalAmount")).addText((text) => {
-        text.inputEl.type = "number";
-        text.inputEl.step = "0.01";
-        text.setValue(String(this.data.monto_total || this.data.monto || 0));
-        text.onChange((v) => {
-          this.data.monto_total = parseFloat(v) || 0;
-        });
-      });
-      new Setting(montoRow.createDiv()).setName(t("paidAmount")).addText((text) => {
+      const resumen = this.creditoContainer.createDiv();
+      resumen.style.cssText = "font-size:0.9em;color:var(--text-muted);margin-bottom:8px;";
+      const totalLabel = this.data.monto_total || this.data.monto || 0;
+      resumen.createSpan({ text: `${t("totalAmount")}: ` });
+      const totalVal = resumen.createSpan({ text: formatCurrency(totalLabel, this.data.moneda || "USD") });
+      totalVal.style.cssText = "font-weight:600;color:var(--text-normal);";
+
+      new Setting(this.creditoContainer).setName(t("paidAmount")).addText((text) => {
         text.inputEl.type = "number";
         text.inputEl.step = "0.01";
         text.setValue(String(this.data.monto || 0));
@@ -364,9 +366,17 @@ export class TransaccionModal extends Modal {
           this.data.modalidad_pago = v as ModalidadPago;
           this.data.deuda_ref = "";
           this.selectedDebtFile = null;
-          if (v === "credito" && !this.data.monto_total && this.data.monto) {
-            this.data.monto_total = this.data.monto;
-            this.data.monto = 0;
+          if (v === "credito") {
+            if (!this.data.monto_total && this.data.monto) {
+              this.data.monto_total = this.data.monto;
+              this.data.monto = 0;
+            }
+            this.montoInput.value = String(this.data.monto_total || 0);
+          } else {
+            if (this.data.monto_total && !this.data.monto) {
+              this.data.monto = this.data.monto_total;
+            }
+            this.montoInput.value = String(this.data.monto || 0);
           }
           buildCreditoSection();
           buildDeudaSection();
@@ -480,8 +490,14 @@ export class TransaccionModal extends Modal {
     const montoSetting = new Setting(form).setName(t("amount")).addText((text) => {
       text.inputEl.type = "number";
       text.inputEl.step = "0.01";
-      text.setValue(String(this.data.monto || 0)).onChange((v) => {
-        this.data.monto = parseFloat(v) || 0;
+      const isCredito = this.data.modalidad_pago === "credito";
+      text.setValue(String(isCredito ? (this.data.monto_total || 0) : (this.data.monto || 0)));
+      text.onChange((v) => {
+        if (this.data.modalidad_pago === "credito") {
+          this.data.monto_total = parseFloat(v) || 0;
+        } else {
+          this.data.monto = parseFloat(v) || 0;
+        }
       });
       this.montoInput = text.inputEl;
     });
@@ -677,7 +693,7 @@ export class TransaccionModal extends Modal {
       const rates = this.plugin.settings.tasasCambio || { USD: 1 };
 
       if (this.data.modalidad_pago === "credito") {
-        const montoTotal = this.data.monto_total || this.data.monto || 0;
+        const montoTotal = this.data.monto_total || 0;
         const montoPagado = this.data.monto || 0;
 
         if (montoTotal <= 0) {
