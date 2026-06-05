@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 permissions:
   contents: write
@@ -11,7 +12,20 @@ permissions:
   attestations: write
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject v-prefixed tags
+        if: startsWith(github.ref_name, 'v')
+        run: |
+          echo "ERROR: Release tags must NOT use 'v' prefix."
+          echo "Obsidian matches manifest.json version against the tag exactly."
+          echo "Use tag without prefix: ${GITHUB_REF_NAME#v}"
+          exit 1
+
   build:
+    needs: validate
+    if: "!startsWith(github.ref_name, 'v')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
