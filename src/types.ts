@@ -23,7 +23,7 @@ export interface ProveedorData {
 }
 
 export type TransaccionClase = "ingreso" | "egreso";
-export type TipoOperacion = "compra" | "venta";
+export type TipoOperacion = "compra" | "venta" | "pedido";
 export type ModalidadPago = "contado" | "credito";
 
 export interface ProductoEnTransaccion {
@@ -120,7 +120,26 @@ export type EntidadData =
   | ProveedorData
   | TransaccionData
   | DeudaData
-  | ProductoData;
+  | ProductoData
+  | CategoriasData;
+
+export interface CategoriasData {
+  tipo: "categorias";
+  categoriasIngreso: string[];
+  categoriasEgreso: string[];
+  categoriasProducto: string[];
+  categoriasCliente: string[];
+  categoriasProveedor: string[];
+}
+
+export const DEFAULT_CATEGORIAS: CategoriasData = {
+  tipo: "categorias",
+  categoriasIngreso: ["Ventas", "Servicios", "Consultoría", "Inversiones", "Cobro de deuda", "Otros ingresos"],
+  categoriasEgreso: ["Insumos", "Servicios", "Impuestos", "Salarios", "Alquiler", "Servicios públicos", "Pago de deuda", "Marketing", "Otros egresos"],
+  categoriasProducto: ["General", "Materia prima", "Producto terminado", "Servicio"],
+  categoriasCliente: ["Minorista", "Mayorista", "Corporativo"],
+  categoriasProveedor: ["Insumos", "Servicios", "Tecnología", "Logística", "Otros"],
+};
 
 export interface OrderManagerSettings {
   baseFolder: string;
@@ -191,8 +210,8 @@ export const DEFAULT_SETTINGS: OrderManagerSettings = {
   baseFolder: "OrderManager",
   defaultCurrency: "USD",
   language: "es",
-  libros: ["Principal"],
-  libroActivo: "Principal",
+  libros: [],
+  libroActivo: "",
   tasaReferencia: "USD",
   tasasCambio: { "USD": 1 },
   bcvPrice: 0,

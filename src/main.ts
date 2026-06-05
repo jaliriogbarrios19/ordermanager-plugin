@@ -1,9 +1,10 @@
-import { Plugin, WorkspaceLeaf, FuzzySuggestModal, TFile, Modal, App } from "obsidian";
+import { Plugin, WorkspaceLeaf, FuzzySuggestModal, TFile, Modal, App, Notice } from "obsidian";
 
 import { OrderManagerSettingTab } from "./settings";
 import { DataManager } from "./data/manager";
 import { setLang, type SupportedLang } from "./i18n";
 import { DashboardView, VIEW_TYPE_DASHBOARD } from "./views/dashboard-view";
+import { t } from "./i18n";
 import { TransaccionesView, VIEW_TYPE_TRANSACCIONES } from "./views/transacciones-view";
 import { ClientesView, VIEW_TYPE_CLIENTES } from "./views/clientes-view";
 import { ProveedoresView, VIEW_TYPE_PROVEEDORES } from "./views/proveedores-view";
@@ -42,12 +43,14 @@ export default class OrderManagerPlugin extends Plugin {
         }
       }
       if (!this.settings.libros.includes(this.settings.libroActivo) || !this.settings.libroActivo) {
-        this.settings.libroActivo = this.settings.libros[0] || "Principal";
+        this.settings.libroActivo = this.settings.libros[0] || "";
         changed = true;
       }
     }
 
     if (changed) await this.saveSettings();
+
+    await this.dataManager.migrateExistingBooks();
 
     if (!this.settings.onboardingComplete) {
       new OnboardingModal(this.app, this).open();
@@ -82,6 +85,7 @@ export default class OrderManagerPlugin extends Plugin {
       id: "nueva-transaccion",
       name: "Nueva transacción",
       callback: () => {
+        if (!this.settings.libroActivo) { new Notice(t("noBookSelectedDesc")); return; }
         new TransaccionModal(this.app, this, async () => {
           const view = this.getExistingView(VIEW_TYPE_TRANSACCIONES);
           if (view instanceof TransaccionesView) await view.refresh();
@@ -101,6 +105,7 @@ export default class OrderManagerPlugin extends Plugin {
       id: "nuevo-cliente",
       name: "Nuevo cliente",
       callback: () => {
+        if (!this.settings.libroActivo) { new Notice(t("noBookSelectedDesc")); return; }
         new ClienteModal(this.app, this, async () => {
           const view = this.getExistingView(VIEW_TYPE_CLIENTES);
           if (view instanceof ClientesView) await view.refresh();
@@ -120,6 +125,7 @@ export default class OrderManagerPlugin extends Plugin {
       id: "nuevo-proveedor",
       name: "Nuevo proveedor",
       callback: () => {
+        if (!this.settings.libroActivo) { new Notice(t("noBookSelectedDesc")); return; }
         new ProveedorModal(this.app, this, async () => {
           const view = this.getExistingView(VIEW_TYPE_PROVEEDORES);
           if (view instanceof ProveedoresView) await view.refresh();
@@ -139,6 +145,7 @@ export default class OrderManagerPlugin extends Plugin {
       id: "nuevo-producto",
       name: "Nuevo producto",
       callback: () => {
+        if (!this.settings.libroActivo) { new Notice(t("noBookSelectedDesc")); return; }
         new ProductoModal(this.app, this, async () => {
           const view = this.getExistingView(VIEW_TYPE_INVENTARIO);
           if (view instanceof InventarioView) await view.refresh();
@@ -158,6 +165,7 @@ export default class OrderManagerPlugin extends Plugin {
       id: "global-search",
       name: "Buscar en todo OrderManager",
       callback: () => {
+        if (!this.settings.libroActivo) { new Notice(t("noBookSelectedDesc")); return; }
         new GlobalSearchModal(this.app, this).open();
       },
     });
@@ -261,20 +269,44 @@ class OnboardingModal extends Modal {
     contentEl.empty();
     contentEl.createEl("h2", { text: "Bienvenido a OrderManager" });
     contentEl.createEl("p", { text: "Tu plugin de contabilidad para emprendimientos." });
-    contentEl.createEl("h4", { text: "Para empezar:" });
-    const list = contentEl.createEl("ol");
-    list.createEl("li", { text: "Andá a Settings → OrderManager → Libros y creá el tuyo (ej: 'Personal')." });
-    list.createEl("li", { text: "En Tasas de cambio, agregá Dólar BCV y USDT, y clickeá Actualizar tasas." });
-    list.createEl("li", { text: "Usá el Dashboard para ver tus finanzas y crear transacciones." });
-    list.createEl("li", { text: "Ctrl+P → 'OrderManager' para ver todos los comandos." });
 
-    const btn = contentEl.createEl("button", { text: "Entendido", cls: "mod-cta" });
-    btn.style.cssText = "margin-top:16px;";
-    btn.onclick = async () => {
-      this.plugin.settings.onboardingComplete = true;
-      await this.plugin.saveSettings();
-      this.close();
-    };
+    if (this.plugin.settings.libros.length === 0) {
+      contentEl.createEl("h4", { text: t("createBookDesc") });
+      contentEl.createEl("p", { text: t("createBookCTA"), cls: "setting-item-description" });
+
+      const row = contentEl.createDiv();
+      row.style.cssText = "display:flex;gap:8px;margin:12px 0;";
+      const input = row.createEl("input", { type: "text", placeholder: t("newBookName") });
+      input.style.cssText =
+        "flex:1;padding:6px 10px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-primary);color:var(--text-normal);";
+
+      const createBtn = row.createEl("button", { text: t("createBook"), cls: "mod-cta" });
+      createBtn.onclick = async () => {
+        const name = input.value.trim();
+        if (!name) return;
+        this.plugin.settings.libros = [name];
+        this.plugin.settings.libroActivo = name;
+        this.plugin.settings.onboardingComplete = true;
+        await this.plugin.saveSettings();
+        this.plugin.dataManager.updateSettings(this.plugin.settings);
+        await this.plugin.dataManager.ensureBaseFolders();
+        await this.plugin.dataManager.migrateExistingBooks();
+        this.close();
+      };
+
+      input.onkeydown = (e) => { if (e.key === "Enter") createBtn.click(); };
+      input.addEventListener("focus", () => {});
+      setTimeout(() => input.focus(), 50);
+    } else {
+      contentEl.createEl("p", { text: `Libros encontrados: ${this.plugin.settings.libros.join(", ")}` });
+      const btn = contentEl.createEl("button", { text: "Entendido", cls: "mod-cta" });
+      btn.style.cssText = "margin-top:16px;";
+      btn.onclick = async () => {
+        this.plugin.settings.onboardingComplete = true;
+        await this.plugin.saveSettings();
+        this.close();
+      };
+    }
   }
 
   onClose() {

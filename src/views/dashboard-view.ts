@@ -5,6 +5,8 @@ import { monthStart, monthEnd, weekStart, weekEnd, today, yearStart, yearEnd, qu
 import { t as i18n } from "../i18n";
 import { convertir, fetchExchangeRates, rebaseRates } from "../utils/exchange";
 import { MONEDA_SOURCES } from "../types";
+import { renderChart } from "./dashboard-chart";
+import { addKPI } from "./dashboard-kpi";
 import { VIEW_TYPE_TRANSACCIONES } from "./transacciones-view";
 import { VIEW_TYPE_CLIENTES } from "./clientes-view";
 import { VIEW_TYPE_PROVEEDORES } from "./proveedores-view";
@@ -58,6 +60,16 @@ export class DashboardView extends ItemView {
 
     const dm = this.plugin.dataManager;
     const currency = this.plugin.settings.defaultCurrency;
+
+    if (!this.plugin.settings.libroActivo) {
+      container.createEl("h2", { text: i18n("noBookSelected") });
+      const msg = container.createEl("p", {
+        text: i18n("noBookSelectedDesc"),
+        cls: "ordermanager-text-muted",
+      });
+      msg.style.cssText = "margin:16px 0;color:var(--text-muted);";
+      return;
+    }
 
     let periodStart = monthStart();
     let periodEnd = monthEnd();
@@ -186,95 +198,8 @@ export class DashboardView extends ItemView {
     const lastTransEl = container.createDiv();
     const topProductsEl = container.createDiv();
 
-    const renderChart = (rRates: Record<string, number>, rRef: string, desde: string, hasta: string) => {
-      const diffDays = Math.ceil((new Date(hasta + "T00:00:00").getTime() - new Date(desde + "T00:00:00").getTime()) / 86400000);
-      if (diffDays <= 1) return;
-
-      const buckets: { label: string; start: string; end: string }[] = [];
-      if (diffDays <= 31) {
-        for (let d = new Date(desde + "T00:00:00"); d <= new Date(hasta + "T00:00:00"); d.setDate(d.getDate() + 7)) {
-          const s = d.toISOString().split("T")[0];
-          const e = new Date(d);
-          e.setDate(e.getDate() + 6);
-          const eStr = e > new Date(hasta + "T00:00:00") ? hasta : e.toISOString().split("T")[0];
-          buckets.push({ label: d.toLocaleDateString("es", { day: "numeric", month: "short" }), start: s, end: eStr });
-        }
-      } else {
-        const start = new Date(desde + "T00:00:00");
-        const end = new Date(hasta + "T00:00:00");
-        while (start <= end) {
-          const mStart = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-01`;
-          const mEnd = new Date(start.getFullYear(), start.getMonth() + 1, 0).toISOString().split("T")[0];
-          const actualEnd = mEnd > hasta ? hasta : mEnd;
-          buckets.push({ label: start.toLocaleDateString("es", { month: "short" }), start: mStart, end: actualEnd });
-          start.setMonth(start.getMonth() + 1);
-        }
-      }
-      if (buckets.length < 2) return;
-
-      const chartEl = resumenEl.createDiv();
-      chartEl.style.cssText = "margin:16px 0;";
-      chartEl.createEl("div", { cls: "ordermanager-section-title", text: periodLabel });
-
-      const data = buckets.map((b) => {
-        const ing = transacciones
-          .filter((t) => t.data.clase === "ingreso" && t.data.fecha >= b.start && t.data.fecha <= b.end)
-          .reduce((s, t) => s + (t.data.monto_referencia || convertir(t.data.monto || 0, t.data.moneda || "USD", rRates, rRef)), 0);
-        const egr = transacciones
-          .filter((t) => t.data.clase === "egreso" && t.data.fecha >= b.start && t.data.fecha <= b.end)
-          .reduce((s, t) => s + (t.data.monto_referencia || convertir(t.data.monto || 0, t.data.moneda || "USD", rRates, rRef)), 0);
-        return { label: b.label, ing, egr };
-      });
-
-      const maxVal = Math.max(...data.map((d) => Math.max(d.ing, d.egr)), 1);
-      const w = 360, h = 140, pad = 40, barW = Math.max(8, Math.min(16, Math.floor((w - pad * 2) / (buckets.length * 2.5))));
-      const gap = Math.floor((w - pad * 2 - barW * 2 * buckets.length) / buckets.length);
-
-      const svg = (chartEl as any).createEl("svg") as SVGElement;
-      svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
-      (svg as unknown as HTMLElement).style.cssText = "width:100%;max-width:400px;margin-top:8px;";
-
-      data.forEach((d, i) => {
-        const x = pad + i * (barW * 2 + gap);
-        const ingH = (d.ing / maxVal) * (h - pad - 10);
-        const egrH = (d.egr / maxVal) * (h - pad - 10);
-
-        const ingRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        ingRect.setAttribute("x", String(x));
-        ingRect.setAttribute("y", String(h - pad - ingH));
-        ingRect.setAttribute("width", String(barW));
-        ingRect.setAttribute("height", String(Math.max(ingH, 0)));
-        ingRect.setAttribute("fill", "var(--color-green)");
-        ingRect.setAttribute("rx", "2");
-        svg.appendChild(ingRect);
-
-        const egrRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        egrRect.setAttribute("x", String(x + barW + 2));
-        egrRect.setAttribute("y", String(h - pad - egrH));
-        egrRect.setAttribute("width", String(barW));
-        egrRect.setAttribute("height", String(Math.max(egrH, 0)));
-        egrRect.setAttribute("fill", "var(--color-red)");
-        egrRect.setAttribute("rx", "2");
-        svg.appendChild(egrRect);
-
-        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        label.setAttribute("x", String(x + barW));
-        label.setAttribute("y", String(h - 5));
-        label.setAttribute("text-anchor", "middle");
-        label.setAttribute("fill", "var(--text-muted)");
-        label.setAttribute("font-size", "9");
-        label.textContent = d.label;
-        svg.appendChild(label);
-      });
-
-      const leyenda = chartEl.createDiv();
-      leyenda.style.cssText = "display:flex;gap:16px;font-size:0.75em;color:var(--text-muted);margin-top:4px;";
-      const ingLeg = leyenda.createEl("span");
-      ingLeg.createSpan({ text: "■", attr: { style: "color:var(--color-green);" } });
-      ingLeg.createSpan({ text: " Ingresos" });
-      const egrLeg = leyenda.createEl("span");
-      egrLeg.createSpan({ text: "■", attr: { style: "color:var(--color-red);" } });
-      egrLeg.createSpan({ text: " Egresos" });
+    const renderChartFn = (rRates: Record<string, number>, rRef: string, desde: string, hasta: string) => {
+      renderChart(resumenEl, transacciones, rRates, rRef, desde, hasta, periodLabel, convertir);
     };
 
     const renderPeriodData = () => {
@@ -302,12 +227,11 @@ export class DashboardView extends ItemView {
       const displayInventario = convertir(valorInventario, ref, rates, showCurrency);
 
       kpiGrid.empty();
-      this.addKPI(kpiGrid, `${i18n("balanceMonth")} — ${periodLabel}`, displayBalance, showCurrency);
-      this.addKPI(kpiGrid, `${i18n("incomeMonth")} — ${periodLabel}`, displayIngresos, showCurrency, "positive");
-      this.addKPI(kpiGrid, `${i18n("expenseMonth")} — ${periodLabel}`, displayEgresos, showCurrency, "negative");
-      this.addKPI(kpiGrid, `Volumen total`, displayIngresos + displayEgresos, showCurrency, "neutral");
-      this.addKPI(kpiGrid, i18n("debtsFavor"), displayDeudasFavor, showCurrency, "positive");
-      this.addKPI(kpiGrid, i18n("debtsAgainst"), displayDeudasContra, showCurrency, "negative");
+      addKPI(kpiGrid, `${i18n("balanceMonth")} — ${periodLabel}`, displayBalance, showCurrency);
+      addKPI(kpiGrid, `${i18n("incomeMonth")} — ${periodLabel}`, displayIngresos, showCurrency, "positive");
+      addKPI(kpiGrid, `${i18n("expenseMonth")} — ${periodLabel}`, displayEgresos, showCurrency, "negative");
+      addKPI(kpiGrid, i18n("debtsFavor"), displayDeudasFavor, showCurrency, "positive");
+      addKPI(kpiGrid, i18n("debtsAgainst"), displayDeudasContra, showCurrency, "negative");
 
       resumenEl.empty();
       resumenEl.createEl("div", { cls: "ordermanager-section-title", text: i18n("summary") });
@@ -420,7 +344,7 @@ export class DashboardView extends ItemView {
       }
 
       topProductsEl.empty();
-      renderChart(rates, ref, desde, hasta);
+      renderChartFn(rates, ref, desde, hasta);
       topProductsEl.empty();
       const productSales = new Map<string, { count: number; total: number }>();
       for (const t of transacciones) {
@@ -549,21 +473,6 @@ export class DashboardView extends ItemView {
       this.plugin.activateView(VIEW_TYPE_INVENTARIO);
     navBar.createEl("button", { text: i18n("debts") }).onclick = () =>
       this.plugin.activateView(VIEW_TYPE_DEUDAS);
-  }
-
-  private addKPI(
-    container: HTMLElement,
-    label: string,
-    value: number,
-    currency: string,
-    colorClass: string = "neutral"
-  ) {
-    const card = container.createDiv({ cls: "ordermanager-kpi-card" });
-    card.createEl("h3", { text: label });
-    const valueEl = card.createEl("p", {
-      cls: `ordermanager-kpi-value ${colorClass}`,
-    });
-    valueEl.setText(formatCurrency(value, currency));
   }
 
   async onClose() {

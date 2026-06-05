@@ -7,8 +7,10 @@ import type {
   TransaccionData,
   DeudaData,
   ProductoData,
+  CategoriasData,
   OrderManagerSettings,
 } from "../types";
+import { DEFAULT_CATEGORIAS } from "../types";
 import { now, today } from "../utils/date";
 
 export class DataManager {
@@ -61,6 +63,11 @@ export class DataManager {
     await this.ensureFolder(`${base}/Deudas`);
     await this.ensureFolder(`${base}/Inventario`);
     await this.ensureFolder(`${base}/Comprobantes`);
+
+    const markerPath = normalizePath(`${this.settings.baseFolder}/.ordermanager`);
+    if (!(await this.vault.adapter.exists(markerPath))) {
+      try { await this.vault.adapter.write(markerPath, "ordermanager"); } catch { /* ok */ }
+    }
   }
 
   async discoverBooks(): Promise<{ books: string[]; actualBasePath: string }> {
@@ -132,7 +139,62 @@ export class DataManager {
       return { books: fromDisk, actualBasePath: matchedPath };
     }
 
+    const markerResult = await this.findByMarker();
+    if (markerResult) return markerResult;
+
     return { books: [], actualBasePath: configuredPath };
+  }
+
+  private async findByMarker(): Promise<{ books: string[]; actualBasePath: string } | null> {
+    const root = this.vault.getRoot();
+    if (!root) return null;
+
+    const candidates: string[] = [];
+    try {
+      const rootListing = await this.vault.adapter.list("/");
+      for (const entry of rootListing.folders) {
+        const markerPath = `${entry}/.ordermanager`;
+        if (await this.vault.adapter.exists(markerPath)) {
+          candidates.push(entry);
+        }
+        try {
+          const subListing = await this.vault.adapter.list(entry);
+          for (const sub of subListing.folders) {
+            const subMarker = `${sub}/.ordermanager`;
+            if (await this.vault.adapter.exists(subMarker)) {
+              candidates.push(sub);
+            }
+          }
+        } catch { /* skip */ }
+      }
+    } catch { /* skip */ }
+
+    if (candidates.length > 0) {
+      const matchedPath = candidates[0];
+      const dataFolders = ["Clientes", "Proveedores", "Transacciones", "Deudas", "Inventario"];
+      const books: string[] = [];
+      try {
+        const listing = await this.vault.adapter.list(matchedPath);
+        for (const folderPath of listing.folders) {
+          const name = folderPath.startsWith(matchedPath + "/")
+            ? folderPath.slice(matchedPath.length + 1)
+            : folderPath.split("/").pop() || "";
+          if (!name) continue;
+          try {
+            const subListing = await this.vault.adapter.list(`${matchedPath}/${name}`);
+            if (dataFolders.some((df) => subListing.folders.includes(`${matchedPath}/${name}/${df}`))) {
+              if (!books.includes(name)) books.push(name);
+            }
+          } catch { /* skip */ }
+        }
+      } catch { /* skip */ }
+
+      if (books.length > 0) {
+        return { books, actualBasePath: matchedPath };
+      }
+    }
+
+    return null;
   }
 
   private comprobantesPath(): string {
@@ -257,6 +319,7 @@ export class DataManager {
   // ============= CLIENTES =============
 
   async getClientes(): Promise<Array<{ file: TFile; data: ClienteData }>> {
+    if (!this.settings.libroActivo) return [];
     const results = await this.readAllFrontmatter(this.basePath("Clientes"));
     return results
       .filter((r) => r.data.tipo === "cliente")
@@ -292,6 +355,7 @@ export class DataManager {
   // ============= PROVEEDORES =============
 
   async getProveedores(): Promise<Array<{ file: TFile; data: ProveedorData }>> {
+    if (!this.settings.libroActivo) return [];
     const results = await this.readAllFrontmatter(this.basePath("Proveedores"));
     return results
       .filter((r) => r.data.tipo === "proveedor")
@@ -327,6 +391,7 @@ export class DataManager {
   // ============= TRANSACCIONES =============
 
   async getTransacciones(): Promise<Array<{ file: TFile; data: TransaccionData }>> {
+    if (!this.settings.libroActivo) return [];
     const folder = this.basePath("Transacciones");
     const files = await this.listFilesRecursive(folder);
     const results: Array<{ file: TFile; data: TransaccionData }> = [];
@@ -384,7 +449,9 @@ export class DataManager {
       result = await this.saveNewFile(this.basePath("Transacciones"), filename, content);
     }
 
-    await this.actualizarInventario(data);
+    if (data.tipo_operacion !== "pedido") {
+      await this.actualizarInventario(data);
+    }
 
     return result;
   }
@@ -407,7 +474,7 @@ export class DataManager {
         : (match.data.stock || 0) + item.cantidad;
 
       await this.saveProducto(
-        { ...match.data, stock: Math.max(0, nuevoStock) },
+        { ...match.data, stock: nuevoStock },
         match.file
       );
     }
@@ -416,6 +483,7 @@ export class DataManager {
   // ============= DEUDAS =============
 
   async getDeudas(): Promise<Array<{ file: TFile; data: DeudaData }>> {
+    if (!this.settings.libroActivo) return [];
     const results = await this.readAllFrontmatter(this.basePath("Deudas"));
     return results
       .filter((r) => r.data.tipo === "deuda")
@@ -483,6 +551,7 @@ export class DataManager {
   // ============= INVENTARIO =============
 
   async getProductos(): Promise<Array<{ file: TFile; data: ProductoData }>> {
+    if (!this.settings.libroActivo) return [];
     const results = await this.readAllFrontmatter(this.basePath("Inventario"));
     return results
       .filter((r) => r.data.tipo === "producto")
@@ -523,6 +592,97 @@ export class DataManager {
     } as Partial<ProductoData>);
 
     return await this.saveNewFile(this.basePath("Inventario"), sanitizedName, content);
+  }
+
+  async getCategorias(): Promise<CategoriasData> {
+    if (!this.settings.libroActivo) {
+      return {
+        tipo: "categorias",
+        categoriasIngreso: [...DEFAULT_CATEGORIAS.categoriasIngreso],
+        categoriasEgreso: [...DEFAULT_CATEGORIAS.categoriasEgreso],
+        categoriasProducto: [...DEFAULT_CATEGORIAS.categoriasProducto],
+        categoriasCliente: [...DEFAULT_CATEGORIAS.categoriasCliente],
+        categoriasProveedor: [...DEFAULT_CATEGORIAS.categoriasProveedor],
+      };
+    }
+    const catPath = normalizePath(`${this.basePath("")}/_categorias.md`);
+    const file = this.vault.getAbstractFileByPath(catPath);
+    if (file instanceof TFile) {
+      try {
+        const data = await this.readFrontmatter(file);
+        if (data.tipo === "categorias") {
+          const parseArr = (field: unknown): string[] => {
+            if (Array.isArray(field)) return field as string[];
+            if (typeof field === "string") {
+              try { const parsed = JSON.parse(field); if (Array.isArray(parsed)) return parsed; } catch { /* */ }
+              if (field.includes(",")) return field.split(",");
+            }
+            return [];
+          };
+          return {
+            tipo: "categorias",
+            categoriasIngreso: parseArr(data.categoriasIngreso).length > 0 ? parseArr(data.categoriasIngreso) : [...DEFAULT_CATEGORIAS.categoriasIngreso],
+            categoriasEgreso: parseArr(data.categoriasEgreso).length > 0 ? parseArr(data.categoriasEgreso) : [...DEFAULT_CATEGORIAS.categoriasEgreso],
+            categoriasProducto: parseArr(data.categoriasProducto).length > 0 ? parseArr(data.categoriasProducto) : [...DEFAULT_CATEGORIAS.categoriasProducto],
+            categoriasCliente: parseArr(data.categoriasCliente).length > 0 ? parseArr(data.categoriasCliente) : [...DEFAULT_CATEGORIAS.categoriasCliente],
+            categoriasProveedor: parseArr(data.categoriasProveedor).length > 0 ? parseArr(data.categoriasProveedor) : [...DEFAULT_CATEGORIAS.categoriasProveedor],
+          };
+        }
+      } catch { /* corrupt file, fallback */ }
+    }
+    return {
+      tipo: "categorias" as const,
+      categoriasIngreso: [...DEFAULT_CATEGORIAS.categoriasIngreso],
+      categoriasEgreso: [...DEFAULT_CATEGORIAS.categoriasEgreso],
+      categoriasProducto: [...DEFAULT_CATEGORIAS.categoriasProducto],
+      categoriasCliente: [...DEFAULT_CATEGORIAS.categoriasCliente],
+      categoriasProveedor: [...DEFAULT_CATEGORIAS.categoriasProveedor],
+    };
+  }
+
+  async saveCategorias(data: CategoriasData): Promise<void> {
+    try {
+      const base = normalizePath(`${this.settings.baseFolder}/${this.settings.libroActivo}`);
+      await this.ensureFolder(base);
+      const catPath = normalizePath(`${base}/_categorias.md`);
+      const safe: Record<string, unknown> = {
+        tipo: "categorias",
+        categoriasIngreso: JSON.stringify([...data.categoriasIngreso]),
+        categoriasEgreso: JSON.stringify([...data.categoriasEgreso]),
+        categoriasProducto: JSON.stringify([...data.categoriasProducto]),
+        categoriasCliente: JSON.stringify([...data.categoriasCliente]),
+        categoriasProveedor: JSON.stringify([...data.categoriasProveedor]),
+        updated: now(),
+      };
+      const content = `---\n${stringifyYaml(safe)}\n---\n# Categorías\n`;
+      const file = this.vault.getAbstractFileByPath(catPath);
+      if (file instanceof TFile) {
+        await this.vault.modify(file, content);
+      } else {
+        await this.vault.create(catPath, content);
+      }
+    } catch (e) {
+      console.error("OrderManager: saveCategorias failed", e);
+    }
+  }
+
+  async migrateExistingBooks(): Promise<void> {
+    for (const libro of this.settings.libros) {
+      const catPath = normalizePath(`${this.settings.baseFolder}/${libro}/_categorias.md`);
+      if (!(await this.vault.adapter.exists(catPath))) {
+        const prevLibro = this.settings.libroActivo;
+        this.settings.libroActivo = libro;
+        try {
+          await this.ensureBaseFolders();
+          await this.saveCategorias({ ...DEFAULT_CATEGORIAS });
+        } finally {
+          this.settings.libroActivo = prevLibro;
+        }
+      }
+    }
+    if (this.settings.libros.length > 0 && !this.settings.libroActivo) {
+      this.settings.libroActivo = this.settings.libros[0];
+    }
   }
 
   async processRecurring(): Promise<void> {

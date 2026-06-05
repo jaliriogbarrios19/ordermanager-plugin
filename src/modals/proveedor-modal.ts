@@ -61,9 +61,10 @@ export class ProveedorModal extends Modal {
     new Setting(form).setName("Dirección").addText((t) =>
       t.setValue(this.data.direccion || "").onChange((v) => (this.data.direccion = v))
     );
-    new Setting(form).setName("Categoría").addDropdown((dd: DropdownComponent) => {
+    new Setting(form).setName("Categoría").addDropdown(async (dd: DropdownComponent) => {
       dd.addOption("", "—");
-      for (const cat of this.plugin.settings.categoriasProveedor) {
+      const categorias = await this.plugin.dataManager.getCategorias();
+      for (const cat of categorias.categoriasProveedor) {
         dd.addOption(cat, cat);
       }
       dd.setValue(this.data.categoria || "");

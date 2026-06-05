@@ -8,6 +8,7 @@ import { formatCurrency } from "../utils/currency";
 import { t } from "../i18n";
 import { TicketModal } from "./ticket-modal";
 import { ProductoModal } from "./producto-modal";
+import { ClienteModal } from "./cliente-modal";
 
 function esCategoriaDeuda(cat: string): boolean {
   return /deuda/i.test(cat);
@@ -24,6 +25,7 @@ export class TransaccionModal extends Modal {
   deudas: Array<{ file: TFile; data: DeudaData }> = [];
 
   private selectedDebtFile: TFile | null = null;
+  private pedidoSubtype: "compra" | "venta" | null = null;
   private montoInput!: HTMLInputElement;
   private monedaDd!: DropdownComponent;
   private clienteDd!: DropdownComponent;
@@ -36,6 +38,7 @@ export class TransaccionModal extends Modal {
   private deudaContainer!: HTMLElement;
   private clienteContainer!: HTMLElement;
   private proveedorContainer!: HTMLElement;
+  private pedidoSubtypeContainer!: HTMLElement;
   private productoTipoDd!: DropdownComponent;
 
   constructor(
@@ -94,6 +97,7 @@ export class TransaccionModal extends Modal {
     this.proveedores = (await this.plugin.dataManager.getProveedores()).map((p) => p.data);
     this.productos = (await this.plugin.dataManager.getProductos()).map((p) => p.data);
     this.deudas = await this.plugin.dataManager.getDeudas();
+    const categorias = await this.plugin.dataManager.getCategorias();
 
     if (this.data.deuda_ref && !this.existingFile) {
       this.data.deuda_ref = "";
@@ -116,6 +120,27 @@ export class TransaccionModal extends Modal {
       }
     };
 
+    const buildPedidoSubtype = () => {
+      this.pedidoSubtypeContainer.empty();
+      if (this.data.tipo_operacion !== "pedido") return;
+
+      new Setting(this.pedidoSubtypeContainer)
+        .setName(t("orderSubtype"))
+        .addDropdown((dd: DropdownComponent) => {
+          dd.addOption("compra", t("purchase"));
+          dd.addOption("venta", t("sale"));
+          dd.setValue(this.pedidoSubtype || "venta");
+          dd.onChange((v) => {
+            this.pedidoSubtype = v as "compra" | "venta";
+            this.data.clase = v === "compra" ? "egreso" : "ingreso";
+            this.data.categoria = "";
+            buildCategoriaDropdown(this.categoriaContainer);
+            buildDeudaSection();
+            buildClienteProveedor();
+          });
+        });
+    };
+
     const buildCategoriaDropdown = (container: HTMLElement) => {
       container.empty();
       new Setting(container)
@@ -124,8 +149,8 @@ export class TransaccionModal extends Modal {
           dd.addOption("", "—");
           const cats =
             this.data.clase === "ingreso"
-              ? this.plugin.settings.categoriasIngreso
-              : this.plugin.settings.categoriasEgreso;
+              ? categorias.categoriasIngreso
+              : categorias.categoriasEgreso;
           for (const cat of cats) {
             dd.addOption(cat, cat);
           }
@@ -307,7 +332,14 @@ export class TransaccionModal extends Modal {
       this.clienteContainer.empty();
       this.proveedorContainer.empty();
 
-      if (this.data.tipo_operacion === "venta") {
+      const mostrarCliente =
+        this.data.tipo_operacion === "venta" ||
+        (this.data.tipo_operacion === "pedido" && this.pedidoSubtype === "venta");
+      const mostrarProveedor =
+        this.data.tipo_operacion === "compra" ||
+        (this.data.tipo_operacion === "pedido" && this.pedidoSubtype === "compra");
+
+      if (mostrarCliente) {
         new Setting(this.clienteContainer)
           .setName(t("clientDebtor"))
           .addDropdown((dd: DropdownComponent) => {
@@ -315,13 +347,32 @@ export class TransaccionModal extends Modal {
             for (const c of this.clientes) {
               dd.addOption(c.nombre, c.nombre);
             }
+            dd.addOption("__new_client__", "➕ Nuevo cliente...");
             dd.setValue(this.data.cliente || "");
-            dd.onChange((v) => (this.data.cliente = v));
+            dd.onChange(async (v) => {
+              if (v === "__new_client__") {
+                try { dd.setValue(this.data.cliente || ""); } catch { /* */ }
+                new ClienteModal(this.app, this.plugin, async () => {
+                  this.clientes = (await this.plugin.dataManager.getClientes()).map((c) => c.data);
+                  const sel = dd.selectEl;
+                  sel.empty();
+                  sel.createEl("option", { value: "", text: "—" });
+                  for (const c of this.clientes) {
+                    sel.createEl("option", { value: c.nombre, text: c.nombre });
+                  }
+                  sel.createEl("option", { value: "__new_client__", text: "➕ Nuevo cliente..." });
+                  const last = this.clientes[this.clientes.length - 1];
+                  if (last) { this.data.cliente = last.nombre; dd.setValue(last.nombre); }
+                }).open();
+                return;
+              }
+              this.data.cliente = v;
+            });
             this.clienteDd = dd;
           });
       }
 
-      if (this.data.tipo_operacion === "compra") {
+      if (mostrarProveedor) {
         new Setting(this.proveedorContainer)
           .setName(t("supplierCreditor"))
           .addDropdown((dd: DropdownComponent) => {
@@ -341,20 +392,31 @@ export class TransaccionModal extends Modal {
       .addDropdown((dd: DropdownComponent) => {
         dd.addOption("compra", t("purchase"));
         dd.addOption("venta", t("sale"));
+        dd.addOption("pedido", t("order"));
         dd.setValue(this.data.tipo_operacion || "venta");
         dd.onChange((v) => {
           this.data.tipo_operacion = v as TipoOperacion;
-          this.data.clase = v === "compra" ? "egreso" : "ingreso";
+          if (v === "pedido") {
+            this.pedidoSubtype = this.pedidoSubtype || "venta";
+            this.data.clase = this.pedidoSubtype === "compra" ? "egreso" : "ingreso";
+          } else {
+            this.pedidoSubtype = null;
+            this.data.clase = v === "compra" ? "egreso" : "ingreso";
+          }
           this.data.categoria = "";
           this.data.deuda_ref = "";
           this.selectedDebtFile = null;
           this.data.cliente = "";
           this.data.proveedor = "";
+          buildPedidoSubtype();
           buildCategoriaDropdown(this.categoriaContainer);
           buildDeudaSection();
           buildClienteProveedor();
         });
       });
+
+    this.pedidoSubtypeContainer = form.createDiv();
+    buildPedidoSubtype();
 
     new Setting(form)
       .setName(t("paymentModality"))
@@ -672,10 +734,76 @@ export class TransaccionModal extends Modal {
         this.close();
       };
     }
+    if (this.existingFile && this.data.tipo_operacion === "pedido" && this.data.estado === "pedido") {
+      actions.createEl("button", { text: t("deliver"), cls: "primary" }).onclick = async () => {
+        if (!(this.data.monto && this.data.monto > 0) && this.data.modalidad_pago !== "credito") {
+          new Notice(t("amountRequired"));
+          return;
+        }
+
+        this.data.productos = [...this.selectedProducts];
+        const ref = this.plugin.settings.tasaReferencia || "USD";
+        const rates = this.plugin.settings.tasasCambio || { USD: 1 };
+        const isCompra = this.pedidoSubtype === "compra";
+
+        if (this.data.modalidad_pago === "credito") {
+          const montoTotal = this.data.monto_total || 0;
+          const montoPagado = this.data.monto || 0;
+          if (montoTotal <= 0) {
+            new Notice(t("totalAmountRequired"));
+            return;
+          }
+          const deudaClase = this.data.clase === "ingreso" ? "a_favor" : "en_contra";
+          const deudaData: Partial<DeudaData> = {
+            tipo: "deuda", clase: deudaClase, deuda_tipo: "dinero",
+            monto_total: montoTotal, monto_pagado: montoPagado,
+            moneda: this.data.moneda || this.plugin.settings.defaultCurrency,
+            fecha_inicio: this.data.fecha || today(),
+            fecha_vencimiento: this.data.fecha_vencimiento || "",
+            cliente: this.data.cliente || "", proveedor: this.data.proveedor || "",
+            descripcion: this.data.descripcion || "",
+            estado: montoPagado >= montoTotal ? "pagada" : "pendiente",
+            cuotas: this.data.cuotas || 1, cuotas_pagadas: this.data.cuotas_pagadas || 0,
+            tasa_interes: this.data.tasa_interes || 0,
+          };
+          const deudaFile = await this.plugin.dataManager.saveDeuda(deudaData);
+          if (montoPagado > 0) {
+            this.data.estado = "confirmado";
+            this.data.monto = montoPagado;
+            this.data.monto_referencia = convertir(montoPagado, this.data.moneda || "USD", rates, ref);
+            this.data.deuda_ref = deudaFile.path;
+            this.data.monto_total = montoTotal;
+            await this.plugin.dataManager.saveTransaccion(
+              { ...this.data, productos: [...this.selectedProducts] },
+              this.existingFile || undefined
+            );
+          }
+          if (isCompra && this.selectedProducts.length > 0) {
+            await this.plugin.dataManager.actualizarInventario({
+              clase: this.data.clase, productos: this.selectedProducts,
+            });
+          }
+        } else {
+          this.data.estado = "confirmado";
+          this.data.monto_referencia = convertir(
+            this.data.monto || 0, this.data.moneda || "USD", rates, ref
+          );
+          await this.plugin.dataManager.saveTransaccion(this.data, this.existingFile || undefined);
+          if (isCompra && this.selectedProducts.length > 0) {
+            await this.plugin.dataManager.actualizarInventario({
+              clase: this.data.clase, productos: this.selectedProducts,
+            });
+          }
+        }
+
+        this.onSubmit();
+        this.close();
+      };
+    }
     actions.createEl("button", { text: t("generateTicket") }).onclick = async () => {
-      if (!this.data.monto || !this.data.fecha) {
-        new Notice("Completá los datos de la transacción antes de generar el ticket.");
-        return;
+      const faltanCampos = !this.data.monto || !this.data.fecha || !this.data.cliente;
+      if (faltanCampos) {
+        if (!confirm(t("incompleteFields"))) return;
       }
       const clientes = await this.plugin.dataManager.getClientes();
       const cliente = clientes.find((c) => c.data.nombre === this.data.cliente);
@@ -688,6 +816,8 @@ export class TransaccionModal extends Modal {
       }
 
       this.data.productos = [...this.selectedProducts];
+
+      const isNewPedido = this.data.tipo_operacion === "pedido" && !this.existingFile;
 
       const ref = this.plugin.settings.tasaReferencia || "USD";
       const rates = this.plugin.settings.tasasCambio || { USD: 1 };
@@ -724,7 +854,7 @@ export class TransaccionModal extends Modal {
 
         deudaFile = await this.plugin.dataManager.saveDeuda(deudaData);
 
-        if (this.selectedProducts.length > 0) {
+        if (this.selectedProducts.length > 0 && !(isNewPedido && this.data.clase === "egreso")) {
           await this.plugin.dataManager.actualizarInventario({
             clase: this.data.clase,
             productos: this.selectedProducts,
@@ -736,6 +866,10 @@ export class TransaccionModal extends Modal {
           this.data.monto_referencia = convertir(montoPagado, this.data.moneda || "USD", rates, ref);
           this.data.deuda_ref = deudaFile.path;
           this.data.monto_total = montoTotal;
+
+          if (isNewPedido) {
+            this.data.estado = "pedido";
+          }
 
           const saveData: Partial<TransaccionData> = {
             ...this.data,
@@ -762,10 +896,21 @@ export class TransaccionModal extends Modal {
           ref
         );
 
+        if (isNewPedido) {
+          this.data.estado = "pedido";
+        }
+
         await this.plugin.dataManager.saveTransaccion(
           this.data,
           this.existingFile || undefined
         );
+
+        if (isNewPedido && this.data.clase === "ingreso" && this.selectedProducts.length > 0) {
+          await this.plugin.dataManager.actualizarInventario({
+            clase: this.data.clase,
+            productos: this.selectedProducts,
+          });
+        }
 
         if (this.data.deuda_ref && this.selectedDebtFile) {
           const deudaFile = this.selectedDebtFile;

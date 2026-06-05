@@ -54,9 +54,10 @@ export class ClienteModal extends Modal {
 
     new Setting(form)
       .setName("Categoría")
-      .addDropdown((dd) => {
+      .addDropdown(async (dd) => {
         dd.addOption("", "—");
-        for (const cat of this.plugin.settings.categoriasCliente) {
+        const categorias = await this.plugin.dataManager.getCategorias();
+        for (const cat of categorias.categoriasCliente) {
           dd.addOption(cat, cat);
         }
         dd.setValue(this.data.categoria || "");

@@ -54,7 +54,8 @@ export class InventarioView extends ItemView {
 
     const filterCat = toolbar.createEl("select");
     filterCat.createEl("option", { text: "Todas las categorías", value: "" });
-    for (const cat of this.plugin.settings.categoriasProducto) {
+    const categorias = await this.plugin.dataManager.getCategorias();
+    for (const cat of categorias.categoriasProducto) {
       filterCat.createEl("option", { text: cat, value: cat });
     }
 

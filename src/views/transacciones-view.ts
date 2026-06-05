@@ -76,9 +76,10 @@ export class TransaccionesView extends ItemView {
 
     const filterCat = toolbar.createEl("select");
     filterCat.createEl("option", { text: i18n("allCategories"), value: "" });
+    const categorias = await this.plugin.dataManager.getCategorias();
     const allCats = [
-      ...this.plugin.settings.categoriasIngreso,
-      ...this.plugin.settings.categoriasEgreso,
+      ...categorias.categoriasIngreso,
+      ...categorias.categoriasEgreso,
     ];
     const uniqueCats = [...new Set(allCats)].sort();
     for (const cat of uniqueCats) {

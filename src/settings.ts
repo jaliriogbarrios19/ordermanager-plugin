@@ -1,13 +1,15 @@
 import { App, PluginSettingTab, Setting, DropdownComponent, Notice, TFile, TFolder, normalizePath } from "obsidian";
 import type OrderManagerPlugin from "./main";
 import type { OrderManagerSettings } from "./types";
-import { FIAT_CURRENCIES, CRYPTO_CURRENCIES, MONEDA_SOURCES } from "./types";
+import { FIAT_CURRENCIES, CRYPTO_CURRENCIES, MONEDA_SOURCES, DEFAULT_CATEGORIAS } from "./types";
 import { LANG_LABELS, type SupportedLang } from "./i18n";
 import { t } from "./i18n";
 import { fetchExchangeRates, rebaseRates } from "./utils/exchange";
+import { buildTagList } from "./settings/tag-list";
 
 export class OrderManagerSettingTab extends PluginSettingTab {
   plugin: OrderManagerPlugin;
+  private displayGen = 0;
 
   constructor(app: App, plugin: OrderManagerPlugin) {
     super(app, plugin);
@@ -321,70 +323,151 @@ export class OrderManagerSettingTab extends PluginSettingTab {
       cls: "setting-item-description",
     });
 
-    this.buildTagList(
-      containerEl,
-      this.plugin.settings.libros,
-      async (values) => {
-        if (values.length === 0) return;
-        this.plugin.settings.libros = values;
-        if (!values.includes(this.plugin.settings.libroActivo)) {
-          this.plugin.settings.libroActivo = values[0];
-        }
-        await this.plugin.saveSettings();
-        this.plugin.dataManager.updateSettings(this.plugin.settings);
-      }
-    );
+    const renderBooks = async () => {
+      const existingWrapper = containerEl.querySelector(".ordermanager-books-list");
+      if (existingWrapper) existingWrapper.remove();
 
-    const dupRow = containerEl.createDiv();
-    dupRow.style.cssText = "display:flex;gap:8px;align-items:center;margin-bottom:12px;";
-    const dupSelect = dupRow.createEl("select");
-    for (const n of this.plugin.settings.libros) {
-      dupSelect.createEl("option", { text: n });
-    }
-    const dupBtn = dupRow.createEl("button", { text: "Duplicar libro" });
-    dupBtn.style.cssText =
-      "padding:6px 14px;border:none;border-radius:4px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;";
-    dupBtn.onclick = async () => {
-      const source = dupSelect.value;
-      const target = `${source} (copia)`;
-      if (this.plugin.settings.libros.includes(target)) {
+      const booksWrapper = containerEl.createDiv({ cls: "ordermanager-books-list" });
+      booksWrapper.style.cssText = "margin-bottom:12px;";
+
+      if (this.plugin.settings.libros.length === 0) {
+        booksWrapper.createEl("p", {
+          text: t("noBookSelectedDesc"),
+          cls: "setting-item-description",
+        });
+      } else {
+        for (const libro of this.plugin.settings.libros) {
+          const row = booksWrapper.createDiv();
+          row.style.cssText =
+            "display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:4px;background:var(--background-secondary);border-radius:6px;";
+
+          const nameSpan = row.createEl("span", { text: libro });
+          nameSpan.style.cssText = "flex:1;font-weight:500;";
+
+          if (libro === this.plugin.settings.libroActivo) {
+            const badge = row.createEl("span", { text: "✓ Activo" });
+            badge.style.cssText =
+              "font-size:0.75em;padding:2px 8px;background:var(--interactive-accent);color:var(--text-on-accent);border-radius:10px;";
+          } else {
+            const setBtn = row.createEl("button", { text: t("selectActive") });
+            setBtn.style.cssText =
+              "padding:3px 10px;font-size:0.8em;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-primary);cursor:pointer;";
+            setBtn.onclick = async () => {
+              this.plugin.settings.libroActivo = libro;
+              await this.plugin.saveSettings();
+              this.plugin.dataManager.updateSettings(this.plugin.settings);
+              await this.plugin.dataManager.ensureBaseFolders();
+              await renderBooks();
+            };
+          }
+
+          const renameBtn = row.createEl("button", { text: "✎" });
+          renameBtn.style.cssText =
+            "padding:3px 8px;font-size:0.8em;border:none;border-radius:4px;background:transparent;cursor:pointer;color:var(--text-muted);";
+          renameBtn.onclick = () => {
+            nameSpan.style.display = "none";
+            renameBtn.style.display = "none";
+            const editRow = row.createDiv();
+            editRow.style.cssText = "display:flex;gap:4px;flex:1;";
+            const editInput = editRow.createEl("input", { type: "text", value: libro });
+            editInput.style.cssText =
+              "flex:1;padding:2px 6px;border:1px solid var(--interactive-accent);border-radius:3px;font-size:0.85em;background:var(--background-primary);color:var(--text-normal);";
+            const confirmBtn = editRow.createEl("button", { text: "✓" });
+            confirmBtn.style.cssText =
+              "padding:2px 8px;border:none;border-radius:3px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;font-size:0.85em;";
+            const cancelBtn = editRow.createEl("button", { text: "×" });
+            cancelBtn.style.cssText =
+              "padding:2px 8px;border:none;border-radius:3px;background:transparent;color:var(--text-muted);cursor:pointer;font-size:0.85em;";
+            const finishRename = async (newName: string) => {
+              if (newName && newName !== libro && !this.plugin.settings.libros.includes(newName)) {
+                const oldPath = normalizePath(`${this.plugin.settings.baseFolder}/${libro}`);
+                const newPath = normalizePath(`${this.plugin.settings.baseFolder}/${newName}`);
+                const oldFolder = this.plugin.app.vault.getAbstractFileByPath(oldPath);
+                if (oldFolder instanceof TFolder) {
+                  try { await this.plugin.app.vault.rename(oldFolder, newPath); } catch { /* */ }
+                }
+                const idx = this.plugin.settings.libros.indexOf(libro);
+                this.plugin.settings.libros[idx] = newName;
+                if (this.plugin.settings.libroActivo === libro) {
+                  this.plugin.settings.libroActivo = newName;
+                }
+                await this.plugin.saveSettings();
+                this.plugin.dataManager.updateSettings(this.plugin.settings);
+              }
+              await renderBooks();
+            };
+            confirmBtn.onclick = () => finishRename(editInput.value.trim());
+            cancelBtn.onclick = () => renderBooks();
+            editInput.onkeydown = (e) => {
+              if (e.key === "Enter") finishRename(editInput.value.trim());
+              if (e.key === "Escape") renderBooks();
+            };
+            editInput.select();
+            editInput.focus();
+          };
+
+          const delBtn = row.createEl("button", { text: "×" });
+          delBtn.style.cssText =
+            "padding:3px 8px;border:none;border-radius:4px;background:var(--color-red);color:#fff;cursor:pointer;font-size:0.8em;";
+          delBtn.onclick = async () => {
+            if (!confirm(`"${libro}": ${t("deleteBookConfirm")}`)) return;
+            const bookPath = normalizePath(`${this.plugin.settings.baseFolder}/${libro}`);
+            const bookFolder = this.plugin.app.vault.getAbstractFileByPath(bookPath);
+            if (bookFolder instanceof TFolder) {
+              try { await this.plugin.app.vault.delete(bookFolder, true); } catch { /* */ }
+            }
+            this.plugin.settings.libros = this.plugin.settings.libros.filter((l) => l !== libro);
+            if (this.plugin.settings.libroActivo === libro) {
+              this.plugin.settings.libroActivo = this.plugin.settings.libros[0] || "";
+            }
+            await this.plugin.saveSettings();
+            this.plugin.dataManager.updateSettings(this.plugin.settings);
+            await renderBooks();
+          };
+        }
+      }
+    };
+
+    renderBooks();
+
+    const createRow = containerEl.createDiv();
+    createRow.style.cssText = "display:flex;gap:8px;margin-bottom:12px;";
+    const nameInput = createRow.createEl("input", {
+      type: "text",
+      placeholder: t("newBookName"),
+    });
+    nameInput.style.cssText =
+      "flex:1;padding:6px 10px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-primary);color:var(--text-normal);";
+    const createBtn = createRow.createEl("button", { text: t("createBook") });
+    createBtn.style.cssText =
+      "padding:6px 14px;border:none;border-radius:4px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;font-weight:500;white-space:nowrap;";
+    createBtn.onclick = async () => {
+      const name = nameInput.value.trim();
+      if (!name) return;
+      if (this.plugin.settings.libros.includes(name)) {
         new Notice("Ya existe un libro con ese nombre.");
         return;
       }
-      this.plugin.settings.libros.push(target);
-      await this.plugin.saveSettings();
-      const srcPath = normalizePath(`${this.plugin.settings.baseFolder}/${source}`);
-      const dstPath = normalizePath(`${this.plugin.settings.baseFolder}/${target}`);
-      const srcFolder = this.plugin.app.vault.getAbstractFileByPath(srcPath);
-      if (srcFolder instanceof TFolder) {
-        await this.copyFolder(srcFolder, dstPath);
+      this.plugin.settings.libros.push(name);
+      if (!this.plugin.settings.libroActivo) {
+        this.plugin.settings.libroActivo = name;
       }
-      new Notice(`Libro "${target}" duplicado.`);
-      this.display();
+      await this.plugin.saveSettings();
+      this.plugin.dataManager.updateSettings(this.plugin.settings);
+      await this.plugin.dataManager.ensureBaseFolders();
+      await this.plugin.dataManager.getCategorias();
+      await this.plugin.dataManager.saveCategorias({ ...DEFAULT_CATEGORIAS });
+      nameInput.value = "";
+      await renderBooks();
+      new Notice(`Libro "${name}" creado.`);
     };
 
-    containerEl.createEl("h3", { text: t("incomeCategories") });
-    this.buildTagList(
-      containerEl,
-      this.plugin.settings.categoriasIngreso,
-      async (values) => {
-        this.plugin.settings.categoriasIngreso = values;
-        await this.plugin.saveSettings();
-      }
-    );
-
-    containerEl.createEl("h3", { text: t("expenseCategories") });
-    this.buildTagList(
-      containerEl,
-      this.plugin.settings.categoriasEgreso,
-      async (values) => {
-        this.plugin.settings.categoriasEgreso = values;
-        await this.plugin.saveSettings();
-      }
-    );
+    nameInput.onkeydown = (e) => {
+      if (e.key === "Enter") createBtn.click();
+    };
 
     containerEl.createEl("h3", { text: t("paymentMethods") });
-    this.buildTagList(
+    buildTagList(
       containerEl,
       this.plugin.settings.mediosPago,
       async (values) => {
@@ -393,119 +476,41 @@ export class OrderManagerSettingTab extends PluginSettingTab {
       }
     );
 
-    containerEl.createEl("h3", { text: t("productCategories") });
-    this.buildTagList(
-      containerEl,
-      this.plugin.settings.categoriasProducto,
-      async (values) => {
-        this.plugin.settings.categoriasProducto = values;
-        await this.plugin.saveSettings();
-      }
-    );
+    const gen = ++this.displayGen;
+    (async () => {
+      const cats = await this.plugin.dataManager.getCategorias();
+      if (gen !== this.displayGen) return;
 
-    containerEl.createEl("h3", { text: t("clientCategories") });
-    this.buildTagList(
-      containerEl,
-      this.plugin.settings.categoriasCliente,
-      async (values) => {
-        this.plugin.settings.categoriasCliente = values;
-        await this.plugin.saveSettings();
-      }
-    );
+      containerEl.createEl("h3", { text: t("incomeCategories") });
+      buildTagList(containerEl, cats.categoriasIngreso, async (values) => {
+        cats.categoriasIngreso = values;
+        await this.plugin.dataManager.saveCategorias(cats);
+      });
 
-    containerEl.createEl("h3", { text: "Categorías de proveedores" });
-    this.buildTagList(
-      containerEl,
-      this.plugin.settings.categoriasProveedor,
-      async (values) => {
-        this.plugin.settings.categoriasProveedor = values;
-        await this.plugin.saveSettings();
-      }
-    );
+      containerEl.createEl("h3", { text: t("expenseCategories") });
+      buildTagList(containerEl, cats.categoriasEgreso, async (values) => {
+        cats.categoriasEgreso = values;
+        await this.plugin.dataManager.saveCategorias(cats);
+      });
+
+      containerEl.createEl("h3", { text: t("productCategories") });
+      buildTagList(containerEl, cats.categoriasProducto, async (values) => {
+        cats.categoriasProducto = values;
+        await this.plugin.dataManager.saveCategorias(cats);
+      });
+
+      containerEl.createEl("h3", { text: t("clientCategories") });
+      buildTagList(containerEl, cats.categoriasCliente, async (values) => {
+        cats.categoriasCliente = values;
+        await this.plugin.dataManager.saveCategorias(cats);
+      });
+
+      containerEl.createEl("h3", { text: "Categorías de proveedores" });
+      buildTagList(containerEl, cats.categoriasProveedor, async (values) => {
+        cats.categoriasProveedor = values;
+        await this.plugin.dataManager.saveCategorias(cats);
+      });
+    })();
   }
 
-  private buildTagList(
-    containerEl: HTMLElement,
-    items: string[],
-    onSave: (values: string[]) => Promise<void>
-  ): void {
-    const wrapper = containerEl.createDiv({ cls: "ordermanager-tag-list" });
-    wrapper.style.display = "flex";
-    wrapper.style.flexWrap = "wrap";
-    wrapper.style.gap = "6px";
-    wrapper.style.marginBottom = "12px";
-
-    const renderTags = () => {
-      wrapper.empty();
-      for (const item of items) {
-        const tag = wrapper.createSpan({ cls: "ordermanager-tag" });
-        tag.style.cssText =
-          "display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--background-secondary);border-radius:12px;font-size:0.85em;";
-
-        const label = tag.createSpan({ text: item });
-
-        const removeBtn = tag.createSpan({ text: "×" });
-        removeBtn.style.cssText =
-          "cursor:pointer;font-weight:bold;color:var(--text-muted);margin-left:2px;";
-        removeBtn.onclick = async () => {
-          const filtered = items.filter((i) => i !== item);
-          if (filtered.length !== items.length) {
-            await onSave(filtered);
-            items.length = 0;
-            items.push(...filtered);
-            renderTags();
-          }
-        };
-
-        wrapper.appendChild(tag);
-      }
-    };
-
-    renderTags();
-
-    const inputRow = containerEl.createDiv();
-    inputRow.style.display = "flex";
-    inputRow.style.gap = "8px";
-    inputRow.style.marginBottom = "8px";
-
-    const input = inputRow.createEl("input", { type: "text" });
-    input.placeholder = "Nuevo valor...";
-    input.style.cssText =
-      "flex:1;padding:6px 10px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-primary);color:var(--text-normal);";
-
-    const addBtn = inputRow.createEl("button", { text: "Agregar" });
-    addBtn.style.cssText =
-      "padding:6px 14px;border:none;border-radius:4px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;font-weight:500;";
-
-    addBtn.onclick = async () => {
-      const value = input.value.trim();
-      if (value && !items.includes(value)) {
-        items.push(value);
-        await onSave([...items]);
-        renderTags();
-        input.value = "";
-      }
-    };
-
-    input.onkeydown = (e) => {
-      if (e.key === "Enter") addBtn.click();
-    };
-  }
-
-  private async copyFolder(src: TFolder, dstPath: string): Promise<void> {
-    try {
-      await this.plugin.app.vault.createFolder(dstPath);
-    } catch {
-      const existing = this.plugin.app.vault.getAbstractFileByPath(dstPath);
-      if (!(existing instanceof TFolder)) throw new Error(`No se pudo crear carpeta destino: ${dstPath}`);
-    }
-    for (const child of src.children) {
-      if (child instanceof TFile) {
-        const content = await this.plugin.app.vault.read(child);
-        await this.plugin.app.vault.create(`${dstPath}/${child.name}`, content);
-      } else if (child instanceof TFolder) {
-        await this.copyFolder(child, `${dstPath}/${child.name}`);
-      }
-    }
-  }
 }

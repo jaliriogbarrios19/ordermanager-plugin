@@ -49,6 +49,7 @@ export class ProductoModal extends Modal {
     });
 
     this.proveedores = (await this.plugin.dataManager.getProveedores()).map((p) => p.data);
+    const categorias = await this.plugin.dataManager.getCategorias();
 
     const form = contentEl.createDiv();
 
@@ -109,7 +110,7 @@ export class ProductoModal extends Modal {
       .setName("Categoría")
       .addDropdown((dd: DropdownComponent) => {
         dd.addOption("", "—");
-        for (const cat of this.plugin.settings.categoriasProducto) {
+        for (const cat of categorias.categoriasProducto) {
           dd.addOption(cat, cat);
         }
         dd.setValue(this.data.categoria || "");
