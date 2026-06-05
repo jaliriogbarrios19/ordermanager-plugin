@@ -3,6 +3,7 @@ import type OrderManagerPlugin from "../main";
 import type { ProductoData } from "../types";
 import { now } from "../utils/date";
 import { RecetaModal } from "./receta-modal";
+import { confirmAction } from "../utils/confirm";
 
 export class ProductoModal extends Modal {
   plugin: OrderManagerPlugin;
@@ -130,12 +131,12 @@ export class ProductoModal extends Modal {
 
     if (this.existingFile) {
       const recetaBtn = form.createDiv();
-      recetaBtn.style.cssText = "margin-bottom:12px;";
+      recetaBtn.style.marginBottom = "12px";
       recetaBtn.createEl("button", { text: "📐 Estructura de costo", cls: "" }).onclick = () => {
         new RecetaModal(this.app, this.plugin, this.existingFile ? {
           ...this.data as ProductoData,
-          receta: (this.data as any).receta || [],
-        } : this.data as ProductoData, this.existingFile!, async () => {
+          receta: this.data.receta || [],
+        } : this.data as ProductoData, this.existingFile!, () => { void (async () => {
           const prods = await this.plugin.dataManager.getProductos();
           const updated = prods.find((p) => p.file.path === this.existingFile!.path);
           if (updated) {
@@ -143,9 +144,9 @@ export class ProductoModal extends Modal {
             this.data.precio_venta = updated.data.precio_venta;
             this.data.margen_ganancia = updated.data.margen_ganancia;
             this.data.porcion = updated.data.porcion;
-            (this.data as any).receta = updated.data.receta;
+            this.data.receta = updated.data.receta;
           }
-        }).open();
+        })(); }).open();
       };
     }
 
@@ -154,7 +155,7 @@ export class ProductoModal extends Modal {
       this.close();
     if (this.existingFile) {
       actions.createEl("button", { text: "Eliminar", cls: "danger" }).onclick = async () => {
-        if (!confirm("¿Eliminar este producto?")) return;
+        if (!await confirmAction(this.app, "¿Eliminar este producto?")) return;
         await this.plugin.dataManager.deleteFile(this.existingFile!);
         this.onSubmit();
         this.close();

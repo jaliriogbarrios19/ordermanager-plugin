@@ -1,13 +1,13 @@
 import { ItemView, WorkspaceLeaf, Notice, Modal, App, Setting } from "obsidian";
 import type OrderManagerPlugin from "../main";
-import type { DeudaData } from "../types";
 import { DeudaModal } from "../modals/deuda-modal";
 import { formatCurrency } from "../utils/currency";
 import { formatDate } from "../utils/date";
-import { VIEW_TYPE_DASHBOARD } from "./dashboard-view";
+import { VIEW_TYPE_DASHBOARD, DashboardView } from "./dashboard-view";
 import { exportDeudasCSV, downloadCSV } from "../utils/export";
 import { t as i18n } from "../i18n";
 import { convertir } from "../utils/exchange";
+import { confirmAction } from "../utils/confirm";
 
 export const VIEW_TYPE_DEUDAS = "ordermanager-deudas";
 
@@ -37,7 +37,7 @@ export class DeudasView extends ItemView {
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", (leaf) => {
         if (leaf?.view === this && !this.firstRender) {
-          this.refresh();
+          void this.refresh();
         }
         this.firstRender = false;
       })
@@ -54,8 +54,7 @@ export class DeudasView extends ItemView {
     const backBtn = container.createEl("button", { text: i18n("backToDashboard"),
       cls: "ordermanager-toolbar",
     });
-    backBtn.style.cssText =
-      "margin-bottom:12px;padding:6px 14px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-secondary);color:var(--text-muted);cursor:pointer;font-size:0.85em;";
+    backBtn.addClass("ordermanager-back-btn");
     backBtn.onclick = () => this.plugin.activateView(VIEW_TYPE_DASHBOARD);
 
     const toolbar = container.createDiv({ cls: "ordermanager-toolbar" });
@@ -78,8 +77,8 @@ export class DeudasView extends ItemView {
 
     const refreshAll = async () => {
       const dashView = this.plugin.getExistingView(VIEW_TYPE_DASHBOARD);
-      if (dashView && typeof (dashView as any).refresh === "function") {
-        await (dashView as any).refresh();
+      if (dashView instanceof DashboardView) {
+        await dashView.refresh();
       }
       await this.refresh();
     };
@@ -110,24 +109,34 @@ export class DeudasView extends ItemView {
 
     if (deudoresMap.size > 0 || acreedoresMap.size > 0) {
       const summaryDiv = container.createDiv();
-      summaryDiv.style.cssText =
-        "display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;";
+      summaryDiv.style.display = "flex";
+      summaryDiv.style.gap = "16px";
+      summaryDiv.style.marginBottom = "16px";
+      summaryDiv.style.flexWrap = "wrap";
 
       if (deudoresMap.size > 0) {
         const card = summaryDiv.createDiv();
-        card.style.cssText =
-          "flex:1;min-width:280px;border:1px solid var(--background-modifier-border);border-radius:8px;padding:12px;background:var(--background-secondary);";
+        card.style.flex = "1";
+        card.style.minWidth = "280px";
+        card.style.border = "1px solid var(--background-modifier-border)";
+        card.style.borderRadius = "8px";
+        card.style.padding = "12px";
+        card.style.background = "var(--background-secondary)";
         card.createEl("h4", {
           text: "Quiénes me deben",
           cls: "",
         });
-        (card.querySelector("h4") as HTMLElement).style.cssText =
-          "margin:0 0 8px 0;color:var(--color-green);font-size:0.9em;";
+        (card.querySelector("h4") as HTMLElement).style.margin = "0 0 8px 0";
+        (card.querySelector("h4") as HTMLElement).style.color = "var(--color-green)";
+        (card.querySelector("h4") as HTMLElement).style.fontSize = "0.9em";
         const sortedDeudores = [...deudoresMap.entries()].sort((a, b) => b[1] - a[1]);
         for (const [nombre, monto] of sortedDeudores) {
           const row = card.createDiv();
-          row.style.cssText =
-            "display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--background-modifier-border);font-size:0.85em;";
+          row.style.display = "flex";
+          row.style.justifyContent = "space-between";
+          row.style.padding = "4px 0";
+          row.style.borderBottom = "1px solid var(--background-modifier-border)";
+          row.style.fontSize = "0.85em";
           row.createSpan({ text: nombre });
           row.createSpan({ text: formatCurrency(monto, this.plugin.settings.defaultCurrency) });
         }
@@ -135,19 +144,27 @@ export class DeudasView extends ItemView {
 
       if (acreedoresMap.size > 0) {
         const card = summaryDiv.createDiv();
-        card.style.cssText =
-          "flex:1;min-width:280px;border:1px solid var(--background-modifier-border);border-radius:8px;padding:12px;background:var(--background-secondary);";
+        card.style.flex = "1";
+        card.style.minWidth = "280px";
+        card.style.border = "1px solid var(--background-modifier-border)";
+        card.style.borderRadius = "8px";
+        card.style.padding = "12px";
+        card.style.background = "var(--background-secondary)";
         card.createEl("h4", {
           text: "A quiénes les debo",
           cls: "",
         });
-        (card.querySelector("h4") as HTMLElement).style.cssText =
-          "margin:0 0 8px 0;color:var(--color-red);font-size:0.9em;";
+        (card.querySelector("h4") as HTMLElement).style.margin = "0 0 8px 0";
+        (card.querySelector("h4") as HTMLElement).style.color = "var(--color-red)";
+        (card.querySelector("h4") as HTMLElement).style.fontSize = "0.9em";
         const sortedAcreedores = [...acreedoresMap.entries()].sort((a, b) => b[1] - a[1]);
         for (const [nombre, monto] of sortedAcreedores) {
           const row = card.createDiv();
-          row.style.cssText =
-            "display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--background-modifier-border);font-size:0.85em;";
+          row.style.display = "flex";
+          row.style.justifyContent = "space-between";
+          row.style.padding = "4px 0";
+          row.style.borderBottom = "1px solid var(--background-modifier-border)";
+          row.style.fontSize = "0.85em";
           row.createSpan({ text: nombre });
           row.createSpan({ text: formatCurrency(monto, this.plugin.settings.defaultCurrency) });
         }
@@ -245,13 +262,20 @@ export class DeudasView extends ItemView {
         });
 
         const actionTd = row.createEl("td");
-        actionTd.style.cssText = "display:flex;gap:4px;";
+        actionTd.addClass("ordermanager-flex-row");
+        actionTd.style.gap = "4px";
 
         if (data.estado !== "pagada" && !esProducto) {
           const payBtn = actionTd.createEl("button", { text: "$" });
           payBtn.title = "Registrar pago";
-          payBtn.style.cssText =
-            "padding:2px 6px;border:none;border-radius:4px;background:var(--color-green);color:#fff;cursor:pointer;font-size:0.85em;line-height:1;";
+          payBtn.style.padding = "2px 6px";
+          payBtn.style.border = "none";
+          payBtn.style.borderRadius = "4px";
+          payBtn.style.background = "var(--color-green)";
+          payBtn.style.color = "#fff";
+          payBtn.style.cursor = "pointer";
+          payBtn.style.fontSize = "0.85em";
+          payBtn.style.lineHeight = "1";
           payBtn.onclick = (e: MouseEvent) => {
             e.stopPropagation();
             const restante = (data.monto_total || 0) - (data.monto_pagado || 0);
@@ -259,7 +283,7 @@ export class DeudasView extends ItemView {
               this.plugin.app,
               restante,
               data.moneda,
-              async (parsed) => {
+              (parsed) => { void (async () => {
                 if (parsed === null || parsed <= 0) return;
                 try {
                   const newPagado = (data.monto_pagado || 0) + parsed;
@@ -285,35 +309,34 @@ export class DeudasView extends ItemView {
                     deuda_ref: d.file.path,
                   });
                   const dashView = this.plugin.getExistingView(VIEW_TYPE_DASHBOARD);
-                  if (dashView && typeof (dashView as any).refresh === "function") {
-                    await (dashView as any).refresh();
+                  if (dashView instanceof DashboardView) {
+                    await dashView.refresh();
                   }
-                  this.refresh();
+                  void this.refresh();
                   new Notice(`Pago registrado: ${formatCurrency(parsed, data.moneda)}`);
                 } catch (err) {
                   new Notice("Error al registrar el pago. Revisá la consola (Ctrl+Shift+I).");
                   console.error("OrderManager: error al registrar pago de deuda", err);
                 }
-              }
+              })(); }
             ).open();
           };
         }
 
         const delBtn = actionTd.createEl("button", { text: "×" });
-        delBtn.style.cssText =
-          "padding:2px 8px;border:none;border-radius:4px;background:var(--color-red);color:#fff;cursor:pointer;font-size:1em;line-height:1;";
+        delBtn.addClass("ordermanager-btn-del");
         delBtn.onclick = async (e: MouseEvent) => {
           e.stopPropagation();
-          if (!confirm("¿Eliminar esta deuda?")) return;
+          if (!await confirmAction(this.plugin.app, "¿Eliminar esta deuda?")) return;
           await this.plugin.dataManager.deleteFile(d.file);
-          refreshAll();
+          void refreshAll();
         };
 
         row.onclick = () => {
           new DeudaModal(
             this.plugin.app,
             this.plugin,
-            () => refreshAll(),
+            () => { void refreshAll(); },
             data,
             d.file
           ).open();

@@ -1,6 +1,6 @@
 import { App, Modal, Notice, Setting, DropdownComponent, TFile } from "obsidian";
 import type OrderManagerPlugin from "../main";
-import type { TransaccionData, TransaccionClase, TipoOperacion, ModalidadPago, ProductoEnTransaccion, DeudaData } from "../types";
+import type { TransaccionData, TipoOperacion, ModalidadPago, ProductoEnTransaccion, DeudaData } from "../types";
 import { MONEDA_SOURCES } from "../types";
 import { today, now } from "../utils/date";
 import { convertir } from "../utils/exchange";
@@ -9,6 +9,7 @@ import { t } from "../i18n";
 import { TicketModal } from "./ticket-modal";
 import { ProductoModal } from "./producto-modal";
 import { ClienteModal } from "./cliente-modal";
+import { confirmAction } from "../utils/confirm";
 
 function esCategoriaDeuda(cat: string): boolean {
   return /deuda/i.test(cat);
@@ -45,7 +46,7 @@ export class TransaccionModal extends Modal {
     app: App,
     plugin: OrderManagerPlugin,
     onSubmit: () => void,
-    existing?: TransaccionData,
+    existing?: Partial<TransaccionData>,
     file?: TFile
   ) {
     super(app);
@@ -185,8 +186,9 @@ export class TransaccionModal extends Modal {
           text: t("noDebtsAvailable"),
           cls: "ordermanager-text-muted",
         });
-        (this.deudaContainer.querySelector("p") as HTMLElement).style.cssText =
-          "font-size:0.85em;color:var(--text-muted);margin:8px 0;";
+        const p = this.deudaContainer.querySelector("p") as HTMLElement;
+        p.style.fontSize = "0.85em";
+        p.style.margin = "8px 0";
         return;
       }
 
@@ -265,8 +267,7 @@ export class TransaccionModal extends Modal {
         });
         const delTd = row.createEl("td");
         const delBtn = delTd.createEl("button", { text: "×" });
-        delBtn.style.cssText =
-          "padding:2px 8px;border:none;border-radius:4px;background:var(--color-red);color:#fff;cursor:pointer;";
+        delBtn.addClass("ordermanager-btn-del");
         delBtn.onclick = () => {
           this.selectedProducts.splice(i, 1);
           this.data.productos = [...this.selectedProducts];
@@ -281,11 +282,14 @@ export class TransaccionModal extends Modal {
       if (this.data.modalidad_pago !== "credito") return;
 
       const resumen = this.creditoContainer.createDiv();
-      resumen.style.cssText = "font-size:0.9em;color:var(--text-muted);margin-bottom:8px;";
+      resumen.addClass("ordermanager-text-muted");
+      resumen.style.fontSize = "0.9em";
+      resumen.style.marginBottom = "8px";
       const totalLabel = this.data.monto_total || this.data.monto || 0;
       resumen.createSpan({ text: `${t("totalAmount")}: ` });
       const totalVal = resumen.createSpan({ text: formatCurrency(totalLabel, this.data.moneda || "USD") });
-      totalVal.style.cssText = "font-weight:600;color:var(--text-normal);";
+      totalVal.style.fontWeight = "600";
+      totalVal.style.color = "var(--text-normal)";
 
       new Setting(this.creditoContainer).setName(t("paidAmount")).addText((text) => {
         text.inputEl.type = "number";
@@ -349,10 +353,10 @@ export class TransaccionModal extends Modal {
             }
             dd.addOption("__new_client__", "➕ Nuevo cliente...");
             dd.setValue(this.data.cliente || "");
-            dd.onChange(async (v) => {
+            dd.onChange((v) => { void (async () => {
               if (v === "__new_client__") {
                 try { dd.setValue(this.data.cliente || ""); } catch { /* */ }
-                new ClienteModal(this.app, this.plugin, async () => {
+                new ClienteModal(this.app, this.plugin, () => { void (async () => {
                   this.clientes = (await this.plugin.dataManager.getClientes()).map((c) => c.data);
                   const sel = dd.selectEl;
                   sel.empty();
@@ -363,11 +367,11 @@ export class TransaccionModal extends Modal {
                   sel.createEl("option", { value: "__new_client__", text: "➕ Nuevo cliente..." });
                   const last = this.clientes[this.clientes.length - 1];
                   if (last) { this.data.cliente = last.nombre; dd.setValue(last.nombre); }
-                }).open();
+                })(); }).open();
                 return;
               }
               this.data.cliente = v;
-            });
+            })(); });
             this.clienteDd = dd;
           });
       }
@@ -446,7 +450,6 @@ export class TransaccionModal extends Modal {
       });
 
     const productHeader = form.createDiv({ cls: "ordermanager-section-title" });
-    productHeader.style.cssText = "margin-top:16px;font-weight:600;";
     productHeader.createSpan({ text: t("products") });
 
     const addRow = form.createDiv({ cls: "ordermanager-form-row" });
@@ -488,10 +491,10 @@ export class TransaccionModal extends Modal {
         precioInput = text.inputEl;
       });
 
-    productoSelectDd.onChange(async (nombre) => {
+    productoSelectDd.onChange((nombre) => { void (async () => {
       if (nombre === "__new__") {
         try { productoSelectDd.setValue(""); } catch { /* */ }
-        new ProductoModal(this.app, this.plugin, async () => {
+        new ProductoModal(this.app, this.plugin, () => { void (async () => {
           this.productos = (await this.plugin.dataManager.getProductos()).map((p) => p.data);
           const sel = productoSelectDd.selectEl;
           sel.empty();
@@ -500,7 +503,7 @@ export class TransaccionModal extends Modal {
             sel.createEl("option", { value: p.nombre, text: p.nombre });
           }
           sel.createEl("option", { value: "__new__", text: "➕ Nuevo producto..." });
-        }).open();
+        })(); }).open();
         return;
       }
       selectedProductName = nombre || "";
@@ -512,13 +515,12 @@ export class TransaccionModal extends Modal {
           : match.precio_costo;
         precioInput.value = String(precio || 0);
       }
-    });
+    })(); });
 
     const addProductBtn = addRow.createDiv().createEl("button", {
       text: `+ ${t("addProduct")}`,
     });
-    addProductBtn.style.cssText =
-      "padding:6px 12px;border:none;border-radius:4px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;font-weight:500;";
+    addProductBtn.addClass("ordermanager-btn-accent");
 
     addProductBtn.onclick = () => {
       const nombre = selectedProductName;
@@ -546,10 +548,10 @@ export class TransaccionModal extends Modal {
     };
 
     this.productosListEl = form.createDiv();
-    this.productosListEl.style.cssText = "margin-bottom:12px;";
+    this.productosListEl.style.marginBottom = "12px";
     buildProductosList();
 
-    const montoSetting = new Setting(form).setName(t("amount")).addText((text) => {
+    new Setting(form).setName(t("amount")).addText((text) => {
       text.inputEl.type = "number";
       text.inputEl.step = "0.01";
       const isCredito = this.data.modalidad_pago === "credito";
@@ -621,7 +623,7 @@ export class TransaccionModal extends Modal {
     compInfo.createDiv({ cls: "setting-item-name", text: t("receipt") });
     const compControl = compRow.createDiv({ cls: "setting-item-control" });
     const compPreview = form.createDiv();
-    compPreview.style.cssText = "margin:4px 0 12px 0;";
+    compPreview.style.margin = "4px 0 12px 0";
 
     const renderPreview = () => {
       compPreview.empty();
@@ -634,18 +636,21 @@ export class TransaccionModal extends Modal {
       if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(ext)) {
         const img = compPreview.createEl("img");
         img.src = resourceUrl;
-        img.style.cssText =
-          "max-width:100%;max-height:300px;margin-top:8px;border-radius:4px;border:1px solid var(--background-modifier-border);cursor:pointer;";
+        img.style.maxWidth = "100%";
+        img.style.maxHeight = "300px";
+        img.style.marginTop = "8px";
+        img.style.borderRadius = "4px";
+        img.style.border = "1px solid var(--background-modifier-border)";
+        img.style.cursor = "pointer";
         img.setAttr("title", "Click para abrir en tamaño completo");
         img.onclick = () => {
-          this.app.workspace.openLinkText(this.data.comprobante!, "", false);
+          void this.app.workspace.openLinkText(this.data.comprobante!, "", false);
         };
       } else if (ext === "pdf") {
         const pdfBtn = compPreview.createEl("button", { text: "Ver PDF" });
-        pdfBtn.style.cssText =
-          "margin-top:8px;padding:6px 14px;border:none;border-radius:4px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;font-size:0.85em;font-weight:500;";
+        pdfBtn.addClass("ordermanager-btn-accent");
         pdfBtn.onclick = () => {
-          this.app.workspace.openLinkText(this.data.comprobante!, "", false);
+          void this.app.workspace.openLinkText(this.data.comprobante!, "", false);
         };
       }
     };
@@ -655,19 +660,23 @@ export class TransaccionModal extends Modal {
       if (this.data.comprobante) {
         const fileName = this.data.comprobante.split("/").pop() || this.data.comprobante;
         const link = compControl.createEl("a", { text: fileName });
-        link.style.cssText =
-          "color:var(--interactive-accent);cursor:pointer;text-decoration:underline;margin-right:8px;font-size:0.9em;";
+        link.style.color = "var(--interactive-accent)";
+        link.style.cursor = "pointer";
+        link.style.textDecoration = "underline";
+        link.style.marginRight = "8px";
+        link.style.fontSize = "0.9em";
         link.onclick = () => {
-          this.app.workspace.openLinkText(this.data.comprobante!, "", false);
+          void this.app.workspace.openLinkText(this.data.comprobante!, "", false);
         };
 
         const changeBtn = compControl.createEl("button", { text: "Cambiar" });
-        changeBtn.style.cssText = "padding:4px 8px;font-size:0.85em;margin-right:6px;";
+        changeBtn.style.padding = "4px 8px";
+        changeBtn.style.fontSize = "0.85em";
+        changeBtn.style.marginRight = "6px";
         changeBtn.onclick = () => pickFile();
 
         const removeBtn = compControl.createEl("button", { text: "×" });
-        removeBtn.style.cssText =
-          "padding:2px 8px;border:none;border-radius:4px;background:var(--color-red);color:#fff;cursor:pointer;font-size:0.85em;line-height:1.2;";
+        removeBtn.addClass("ordermanager-btn-del");
         removeBtn.onclick = async () => {
           await this.plugin.dataManager.deleteComprobante(this.data.comprobante!);
           this.data.comprobante = "";
@@ -675,16 +684,19 @@ export class TransaccionModal extends Modal {
         };
       } else {
         const span = compControl.createEl("span", { text: "Sin adjuntar" });
-        span.style.cssText = "color:var(--text-muted);font-size:0.85em;margin-right:8px;";
+        span.addClass("ordermanager-text-muted");
+        span.style.fontSize = "0.85em";
+        span.style.marginRight = "8px";
         const attachBtn = compControl.createEl("button", { text: "Adjuntar" });
-        attachBtn.style.cssText = "padding:4px 8px;font-size:0.85em;";
+        attachBtn.style.padding = "4px 8px";
+        attachBtn.style.fontSize = "0.85em";
         attachBtn.onclick = () => pickFile();
       }
       renderPreview();
     };
 
     const pickFile = () => {
-      const fileInput = document.createElement("input");
+      const fileInput = activeDocument.createElement("input");
       fileInput.type = "file";
       fileInput.accept = ".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.zip";
       fileInput.onchange = async () => {
@@ -728,7 +740,7 @@ export class TransaccionModal extends Modal {
       this.close();
     if (this.existingFile) {
       actions.createEl("button", { text: t("delete"), cls: "danger" }).onclick = async () => {
-        if (!confirm("¿Eliminar esta transacción?")) return;
+        if (!await confirmAction(this.app, "¿Eliminar esta transacción?")) return;
         await this.plugin.dataManager.deleteTransaccion(this.existingFile!);
         this.onSubmit();
         this.close();
@@ -803,7 +815,7 @@ export class TransaccionModal extends Modal {
     actions.createEl("button", { text: t("generateTicket") }).onclick = async () => {
       const faltanCampos = !this.data.monto || !this.data.fecha || !this.data.cliente;
       if (faltanCampos) {
-        if (!confirm(t("incompleteFields"))) return;
+        if (!await confirmAction(this.app, t("incompleteFields"))) return;
       }
       const clientes = await this.plugin.dataManager.getClientes();
       const cliente = clientes.find((c) => c.data.nombre === this.data.cliente);

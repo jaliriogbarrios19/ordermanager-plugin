@@ -15,6 +15,7 @@ import { VIEW_TYPE_DEUDAS } from "./deudas-view";
 import { TransaccionModal } from "../modals/transaccion-modal";
 import { ClienteModal } from "../modals/cliente-modal";
 import { ProductoModal } from "../modals/producto-modal";
+import type { TransaccionData } from "../types";
 
 export const VIEW_TYPE_DASHBOARD = "ordermanager-dashboard";
 
@@ -44,7 +45,7 @@ export class DashboardView extends ItemView {
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", (leaf) => {
         if (leaf?.view === this && !this.firstRender) {
-          this.refresh();
+          void this.refresh();
         }
         this.firstRender = false;
       })
@@ -67,7 +68,7 @@ export class DashboardView extends ItemView {
         text: i18n("noBookSelectedDesc"),
         cls: "ordermanager-text-muted",
       });
-      msg.style.cssText = "margin:16px 0;color:var(--text-muted);";
+      msg.style.margin = "16px 0";
       return;
     }
 
@@ -104,8 +105,9 @@ export class DashboardView extends ItemView {
 
     if (this.plugin.settings.libros.length > 1) {
       const switchRow = container.createDiv({ cls: "ordermanager-toolbar" });
-      switchRow.createEl("span", { text: `${i18n("book")}:` }).style.cssText =
-        "font-size:0.85em;color:var(--text-muted);";
+      const bookLbl = switchRow.createEl("span", { text: `${i18n("book")}:` });
+      bookLbl.addClass("ordermanager-text-muted");
+      bookLbl.style.fontSize = "0.85em";
       const selector = switchRow.createEl("select");
       for (const n of this.plugin.settings.libros) {
         const opt = selector.createEl("option", { text: n });
@@ -116,13 +118,14 @@ export class DashboardView extends ItemView {
         await this.plugin.saveSettings();
         this.plugin.dataManager.updateSettings(this.plugin.settings);
         await this.plugin.dataManager.ensureBaseFolders();
-        this.refresh();
+        void this.refresh();
       };
     }
 
     const curRow = container.createDiv({ cls: "ordermanager-toolbar" });
-    curRow.createEl("span", { text: "Moneda:" }).style.cssText =
-      "font-size:0.85em;color:var(--text-muted);";
+    const curLbl = curRow.createEl("span", { text: "Moneda:" });
+    curLbl.addClass("ordermanager-text-muted");
+    curLbl.style.fontSize = "0.85em";
     let displayCurrency = this.plugin.settings.tasaReferencia || "USD";
     const curSelector = curRow.createEl("select");
     const availableCurrencies = Object.keys(this.plugin.settings.tasasCambio || {}).filter((k) => !k.startsWith("_"));
@@ -137,8 +140,15 @@ export class DashboardView extends ItemView {
     };
 
     const updateRatesBtn = curRow.createEl("button", { text: "Actualizar tasas" });
-    updateRatesBtn.style.cssText =
-      "margin-left:8px;padding:4px 12px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-secondary);color:var(--text-muted);cursor:pointer;font-size:0.8em;white-space:nowrap;";
+    updateRatesBtn.style.marginLeft = "8px";
+    updateRatesBtn.style.padding = "4px 12px";
+    updateRatesBtn.style.border = "1px solid var(--background-modifier-border)";
+    updateRatesBtn.style.borderRadius = "4px";
+    updateRatesBtn.style.background = "var(--background-secondary)";
+    updateRatesBtn.style.color = "var(--text-muted)";
+    updateRatesBtn.style.cursor = "pointer";
+    updateRatesBtn.style.fontSize = "0.8em";
+    updateRatesBtn.style.whiteSpace = "nowrap";
     updateRatesBtn.onclick = async () => {
       updateRatesBtn.textContent = "⏳";
       updateRatesBtn.disabled = true;
@@ -170,8 +180,9 @@ export class DashboardView extends ItemView {
     };
 
     const periodRow = container.createDiv({ cls: "ordermanager-toolbar" });
-    periodRow.createEl("span", { text: `${i18n("period")}:` }).style.cssText =
-      "font-size:0.85em;color:var(--text-muted);";
+    const periodLbl = periodRow.createEl("span", { text: `${i18n("period")}:` });
+    periodLbl.addClass("ordermanager-text-muted");
+    periodLbl.style.fontSize = "0.85em";
     const periodSelector = periodRow.createEl("select");
     periodSelector.createEl("option", { text: i18n("thisMonth"), value: "month" });
     periodSelector.createEl("option", { text: i18n("thisWeek"), value: "week" });
@@ -183,15 +194,23 @@ export class DashboardView extends ItemView {
     periodSelector.value = "month";
 
     const customRow = periodRow.createDiv();
-    customRow.style.cssText = "display:none;margin-left:8px;";
+    customRow.style.display = "none";
+    customRow.style.marginLeft = "8px";
     const dateFromInput = customRow.createEl("input", { type: "date" });
-    dateFromInput.style.cssText =
-      "padding:4px 8px;border:1px solid var(--background-modifier-border);border-radius:4px;font-size:0.85em;";
+    dateFromInput.style.padding = "4px 8px";
+    dateFromInput.style.border = "1px solid var(--background-modifier-border)";
+    dateFromInput.style.borderRadius = "4px";
+    dateFromInput.style.fontSize = "0.85em";
     const dateToInput = customRow.createEl("input", { type: "date" });
-    dateToInput.style.cssText = dateFromInput.style.cssText;
+    dateToInput.style.padding = "4px 8px";
+    dateToInput.style.border = "1px solid var(--background-modifier-border)";
+    dateToInput.style.borderRadius = "4px";
+    dateToInput.style.fontSize = "0.85em";
     const applyBtn = customRow.createEl("button", { text: i18n("apply") });
-    applyBtn.style.cssText =
-      "padding:4px 12px;border:none;border-radius:4px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;font-size:0.85em;margin-left:4px;";
+    applyBtn.addClass("ordermanager-btn-accent");
+    applyBtn.style.padding = "4px 12px";
+    applyBtn.style.fontSize = "0.85em";
+    applyBtn.style.marginLeft = "4px";
 
     const kpiGrid = container.createDiv({ cls: "ordermanager-kpi-grid" });
     const resumenEl = container.createDiv();
@@ -217,15 +236,11 @@ export class DashboardView extends ItemView {
         .filter((t) => t.data.clase === "egreso" && t.data.fecha >= desde && t.data.fecha <= hasta)
         .reduce((sum, t) => sum + (t.data.monto_referencia || convertir(t.data.monto || 0, t.data.moneda || "USD", rates, ref)), 0);
 
-      const balance = ingresosPeriodo - egresosPeriodo;
-
       const displayIngresos = convertir(ingresosPeriodo, ref, rates, showCurrency);
       const displayEgresos = convertir(egresosPeriodo, ref, rates, showCurrency);
       const displayBalance = displayIngresos - displayEgresos;
       const displayDeudasFavor = convertir(deudasAFavor, ref, rates, showCurrency);
       const displayDeudasContra = convertir(deudasEnContra, ref, rates, showCurrency);
-      const displayInventario = convertir(valorInventario, ref, rates, showCurrency);
-
       kpiGrid.empty();
       addKPI(kpiGrid, `${i18n("balanceMonth")} — ${periodLabel}`, displayBalance, showCurrency);
       addKPI(kpiGrid, `${i18n("incomeMonth")} — ${periodLabel}`, displayIngresos, showCurrency, "positive");
@@ -252,8 +267,11 @@ export class DashboardView extends ItemView {
       });
       if (lowStock.length > 0) {
         const alertDiv = resumenEl.createDiv();
-        alertDiv.style.cssText =
-          "margin-top:8px;padding:8px 12px;background:rgba(var(--color-red-rgb),0.1);border:1px solid var(--color-red);border-radius:4px;";
+        alertDiv.style.marginTop = "8px";
+        alertDiv.style.padding = "8px 12px";
+        alertDiv.style.background = "rgba(var(--color-red-rgb),0.1)";
+        alertDiv.style.border = "1px solid var(--color-red)";
+        alertDiv.style.borderRadius = "4px";
         alertDiv.createEl("strong", { text: `⚠ Stock bajo (${lowStock.length}): ` });
         alertDiv.createSpan({
           text: lowStock.map((p) => `${p.data.nombre} (${p.data.stock})`).join(", "),
@@ -272,11 +290,15 @@ export class DashboardView extends ItemView {
 
       if (upcoming.length > 0) {
         const dueDiv = resumenEl.createDiv();
-        dueDiv.style.cssText =
-          "margin-top:8px;padding:8px 12px;background:rgba(var(--color-yellow-rgb),0.1);border:1px solid var(--color-yellow);border-radius:4px;";
+        dueDiv.style.marginTop = "8px";
+        dueDiv.style.padding = "8px 12px";
+        dueDiv.style.background = "rgba(var(--color-yellow-rgb),0.1)";
+        dueDiv.style.border = "1px solid var(--color-yellow)";
+        dueDiv.style.borderRadius = "4px";
         dueDiv.createEl("strong", { text: `📅 Próximos vencimientos (${upcoming.length}):` });
         const dueList = dueDiv.createEl("div");
-        dueList.style.cssText = "margin-top:4px;font-size:0.85em;";
+        dueList.style.marginTop = "4px";
+        dueList.style.fontSize = "0.85em";
         for (const d of upcoming) {
           const row = dueList.createDiv();
           row.createSpan({ text: `${d.data.fecha_vencimiento} — ` });
@@ -325,7 +347,7 @@ export class DashboardView extends ItemView {
             icon.setAttr("title", d.comprobante + " — Click para abrir");
             icon.onclick = (e: MouseEvent) => {
               e.stopPropagation();
-              this.app.workspace.openLinkText(d.comprobante, "", false);
+              void this.app.workspace.openLinkText(d.comprobante, "", false);
             };
           } else {
             compTd.createEl("span", { text: "—" });
@@ -335,7 +357,7 @@ export class DashboardView extends ItemView {
             new TransaccionModal(
               this.plugin.app,
               this.plugin,
-              () => this.refresh(),
+              () => { void this.refresh(); },
               d,
               t.file
             ).open();
@@ -368,12 +390,16 @@ export class DashboardView extends ItemView {
           .sort((a, b) => b[1].total - a[1].total)
           .slice(0, 5);
         const topSection = topProductsEl.createDiv();
-        topSection.style.cssText = "margin-bottom:16px;";
+        topSection.style.marginBottom = "16px";
         const topBtn = topSection.createEl("button", { text: i18n("topProducts") });
-        topBtn.style.cssText =
-          "padding:8px 16px;border:none;border-radius:4px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;font-weight:600;font-size:0.9em;width:100%;";
+        topBtn.addClass("ordermanager-btn-accent");
+        topBtn.style.padding = "8px 16px";
+        topBtn.style.fontWeight = "600";
+        topBtn.style.fontSize = "0.9em";
+        topBtn.style.width = "100%";
         const topContent = topSection.createDiv();
-        topContent.style.cssText = "display:none;margin-top:8px;";
+        topContent.style.display = "none";
+        topContent.style.marginTop = "8px";
         const topTable = topContent.createEl("table", { cls: "ordermanager-table" });
         const tHead = topTable.createEl("thead");
         const hRow = tHead.createEl("tr");
@@ -445,19 +471,20 @@ export class DashboardView extends ItemView {
     container.createEl("div", { cls: "ordermanager-section-title", text: i18n("quickActions") });
     const quickBar = container.createDiv({ cls: "ordermanager-toolbar" });
     quickBar.createEl("button", { text: i18n("newTransactionBtn") }).onclick = () => {
-      new TransaccionModal(this.plugin.app, this.plugin, () => this.refresh(), {
+      new TransaccionModal(this.plugin.app, this.plugin, () => { void this.refresh(); }, {
+        tipo: "transaccion",
         clase: "ingreso",
         tipo_operacion: "venta",
         modalidad_pago: "contado",
         productos: [],
         moneda: currency,
-      } as any).open();
+      } as Partial<TransaccionData>).open();
     };
     quickBar.createEl("button", { text: i18n("newClientTitle") }).onclick = () => {
-      new ClienteModal(this.plugin.app, this.plugin, () => this.refresh()).open();
+      new ClienteModal(this.plugin.app, this.plugin, () => { void this.refresh(); }).open();
     };
     quickBar.createEl("button", { text: i18n("newProductTitle") }).onclick = () => {
-      new ProductoModal(this.plugin.app, this.plugin, () => this.refresh()).open();
+      new ProductoModal(this.plugin.app, this.plugin, () => { void this.refresh(); }).open();
     };
 
     renderPeriodData();

@@ -3,6 +3,7 @@ import type OrderManagerPlugin from "../main";
 import type { DeudaData, DeudaClase, DeudaEstado, DeudaTipo } from "../types";
 import { today, now } from "../utils/date";
 import { t } from "../i18n";
+import { confirmAction } from "../utils/confirm";
 
 export class DeudaModal extends Modal {
   plugin: OrderManagerPlugin;
@@ -252,7 +253,7 @@ export class DeudaModal extends Modal {
       this.close();
     if (this.existingFile) {
       actions.createEl("button", { text: t("delete"), cls: "danger" }).onclick = async () => {
-        if (!confirm("¿Eliminar esta deuda?")) return;
+        if (!await confirmAction(this.app, "¿Eliminar esta deuda?")) return;
         await this.plugin.dataManager.deleteFile(this.existingFile!);
         this.onSubmit();
         this.close();

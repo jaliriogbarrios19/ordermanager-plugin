@@ -2,6 +2,7 @@ import { App, Modal, Notice, Setting, DropdownComponent } from "obsidian";
 import type OrderManagerPlugin from "../main";
 import type { ProveedorData } from "../types";
 import { now } from "../utils/date";
+import { confirmAction } from "../utils/confirm";
 
 export class ProveedorModal extends Modal {
   plugin: OrderManagerPlugin;
@@ -75,7 +76,7 @@ export class ProveedorModal extends Modal {
     actions.createEl("button", { text: "Cancelar", cls: "secondary" }).onclick = () => this.close();
     if (this.existingFile) {
       actions.createEl("button", { text: "Eliminar", cls: "danger" }).onclick = async () => {
-        if (!confirm("¿Eliminar este proveedor?")) return;
+        if (!await confirmAction(this.app, "¿Eliminar este proveedor?")) return;
         await this.plugin.dataManager.deleteFile(this.existingFile!);
         this.onSubmit();
         this.close();

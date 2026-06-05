@@ -2,6 +2,7 @@ import { App, Modal, Notice, Setting } from "obsidian";
 import type OrderManagerPlugin from "../main";
 import type { ClienteData } from "../types";
 import { now } from "../utils/date";
+import { confirmAction } from "../utils/confirm";
 
 export class ClienteModal extends Modal {
   plugin: OrderManagerPlugin;
@@ -70,7 +71,7 @@ export class ClienteModal extends Modal {
     actions.createEl("button", { text: "Cancelar", cls: "secondary" }).onclick = () => this.close();
     if (this.existingFile) {
       actions.createEl("button", { text: "Eliminar", cls: "danger" }).onclick = async () => {
-        if (!confirm("¿Eliminar este cliente?")) return;
+        if (!await confirmAction(this.app, "¿Eliminar este cliente?")) return;
         await this.plugin.dataManager.deleteFile(this.existingFile!);
         this.onSubmit();
         this.close();

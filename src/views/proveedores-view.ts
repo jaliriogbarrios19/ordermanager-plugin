@@ -1,10 +1,10 @@
 import { ItemView, WorkspaceLeaf } from "obsidian";
 import type OrderManagerPlugin from "../main";
-import type { ProveedorData } from "../types";
 import { ProveedorModal } from "../modals/proveedor-modal";
 import { VIEW_TYPE_DASHBOARD } from "./dashboard-view";
 import { exportProveedoresCSV, downloadCSV } from "../utils/export";
 import { t as i18n } from "../i18n";
+import { confirmAction } from "../utils/confirm";
 
 export const VIEW_TYPE_PROVEEDORES = "ordermanager-proveedores";
 
@@ -42,8 +42,7 @@ export class ProveedoresView extends ItemView {
       text: i18n("backToDashboard"),
       cls: "ordermanager-toolbar",
     });
-    backBtn.style.cssText =
-      "margin-bottom:12px;padding:6px 14px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-secondary);color:var(--text-muted);cursor:pointer;font-size:0.85em;";
+    backBtn.addClass("ordermanager-back-btn");
     backBtn.onclick = () => this.plugin.activateView(VIEW_TYPE_DASHBOARD);
 
     const toolbar = container.createDiv({ cls: "ordermanager-toolbar" });
@@ -54,7 +53,7 @@ export class ProveedoresView extends ItemView {
     });
 
     toolbar.createEl("button", { text: i18n("newSupplier"), cls: "" }).onclick = () => {
-      new ProveedorModal(this.plugin.app, this.plugin, () => this.refresh()).open();
+      new ProveedorModal(this.plugin.app, this.plugin, () => { void this.refresh(); }).open();
     };
 
     toolbar.createEl("button", { text: "CSV", cls: "secondary" }).onclick = () => {
@@ -106,20 +105,19 @@ export class ProveedoresView extends ItemView {
 
         const actionTd = row.createEl("td");
         const delBtn = actionTd.createEl("button", { text: "×" });
-        delBtn.style.cssText =
-          "padding:2px 8px;border:none;border-radius:4px;background:var(--color-red);color:#fff;cursor:pointer;font-size:1em;line-height:1;";
+        delBtn.addClass("ordermanager-btn-del");
         delBtn.onclick = async (e: MouseEvent) => {
           e.stopPropagation();
-          if (!confirm("¿Eliminar este proveedor?")) return;
+          if (!await confirmAction(this.plugin.app, "¿Eliminar este proveedor?")) return;
           await this.plugin.dataManager.deleteFile(p.file);
-          this.refresh();
+          void this.refresh();
         };
 
         row.onclick = () => {
           new ProveedorModal(
             this.plugin.app,
             this.plugin,
-            () => this.refresh(),
+            () => { void this.refresh(); },
             d,
             p.file
           ).open();

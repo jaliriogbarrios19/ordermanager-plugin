@@ -43,7 +43,7 @@ export function renderChart(
   if (buckets.length < 2) return;
 
   const chartEl = chartContainer.createDiv();
-  chartEl.style.cssText = "margin:16px 0;";
+  chartEl.style.margin = "16px 0";
   chartEl.createEl("div", { cls: "ordermanager-section-title", text: periodLabel });
 
   const data = buckets.map((b) => {
@@ -60,16 +60,19 @@ export function renderChart(
   const w = 360, h = 140, pad = 40, barW = Math.max(8, Math.min(16, Math.floor((w - pad * 2) / (buckets.length * 2.5))));
   const gap = Math.floor((w - pad * 2 - barW * 2 * buckets.length) / buckets.length);
 
-  const svg = (chartEl as any).createEl("svg") as SVGElement;
+  const svg = activeDocument.createElementNS("http://www.w3.org/2000/svg", "svg") as unknown as SVGSVGElement;
   svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
-  (svg as unknown as HTMLElement).style.cssText = "width:100%;max-width:400px;margin-top:8px;";
+  svg.style.width = "100%";
+  svg.style.maxWidth = "400px";
+  svg.style.marginTop = "8px";
+  chartEl.appendChild(svg as unknown as Node);
 
   data.forEach((d, i) => {
     const x = pad + i * (barW * 2 + gap);
     const ingH = (d.ing / maxVal) * (h - pad - 10);
     const egrH = (d.egr / maxVal) * (h - pad - 10);
 
-    const ingRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    const ingRect = activeDocument.createElementNS("http://www.w3.org/2000/svg", "rect");
     ingRect.setAttribute("x", String(x));
     ingRect.setAttribute("y", String(h - pad - ingH));
     ingRect.setAttribute("width", String(barW));
@@ -78,7 +81,7 @@ export function renderChart(
     ingRect.setAttribute("rx", "2");
     svg.appendChild(ingRect);
 
-    const egrRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    const egrRect = activeDocument.createElementNS("http://www.w3.org/2000/svg", "rect");
     egrRect.setAttribute("x", String(x + barW + 2));
     egrRect.setAttribute("y", String(h - pad - egrH));
     egrRect.setAttribute("width", String(barW));
@@ -87,7 +90,7 @@ export function renderChart(
     egrRect.setAttribute("rx", "2");
     svg.appendChild(egrRect);
 
-    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    const label = activeDocument.createElementNS("http://www.w3.org/2000/svg", "text");
     label.setAttribute("x", String(x + barW));
     label.setAttribute("y", String(h - 5));
     label.setAttribute("text-anchor", "middle");
@@ -98,7 +101,11 @@ export function renderChart(
   });
 
   const leyenda = chartEl.createDiv();
-  leyenda.style.cssText = "display:flex;gap:16px;font-size:0.75em;color:var(--text-muted);margin-top:4px;";
+  leyenda.addClass("ordermanager-flex-row");
+  leyenda.style.gap = "16px";
+  leyenda.style.fontSize = "0.75em";
+  leyenda.addClass("ordermanager-text-muted");
+  leyenda.style.marginTop = "4px";
   const ingLeg = leyenda.createEl("span");
   ingLeg.createSpan({ text: "■", attr: { style: "color:var(--color-green);" } });
   ingLeg.createSpan({ text: " Ingresos" });

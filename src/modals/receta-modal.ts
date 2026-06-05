@@ -38,7 +38,11 @@ export class RecetaModal extends Modal {
     contentEl.createEl("h3", { text: `Estructura de Costo \u2014 ${this.producto.nombre}` });
 
     const calcRow = contentEl.createDiv();
-    calcRow.style.cssText = "display:flex;gap:16px;margin-bottom:12px;align-items:center;flex-wrap:wrap;";
+    calcRow.style.display = "flex";
+    calcRow.style.gap = "16px";
+    calcRow.style.marginBottom = "12px";
+    calcRow.style.alignItems = "center";
+    calcRow.style.flexWrap = "wrap";
 
     const updateSubtotals = () => {
       this.receta.forEach((item, i) => {
@@ -56,14 +60,19 @@ export class RecetaModal extends Modal {
       const costoUnitario = costoTotal / (this.porcion || 1);
       const ventaUnitario = (costoConMargen * (1 + (this.margen || 0) / 100) + costoSinMargen) / (this.porcion || 1);
 
-      calcRow.createEl("span", { text: `Costo total: ${formatCurrency(costoTotal, this.producto.moneda)}` }).style.cssText = "font-weight:600;";
-      calcRow.createEl("span", { text: `Costo/ud: ${formatCurrency(costoUnitario, this.producto.moneda)}` }).style.cssText = "font-weight:600;";
-      calcRow.createEl("span", { text: `Precio venta/ud: ${formatCurrency(ventaUnitario, this.producto.moneda)}` }).style.cssText = "font-weight:700;color:var(--color-green);";
+      calcRow.createEl("span", { text: `Costo total: ${formatCurrency(costoTotal, this.producto.moneda)}` }).style.fontWeight = "600";
+      calcRow.createEl("span", { text: `Costo/ud: ${formatCurrency(costoUnitario, this.producto.moneda)}` }).style.fontWeight = "600";
+      const ventaSpan = calcRow.createEl("span", { text: `Precio venta/ud: ${formatCurrency(ventaUnitario, this.producto.moneda)}` });
+      ventaSpan.style.fontWeight = "700";
+      ventaSpan.style.color = "var(--color-green)";
       updateSubtotals();
     };
 
     const margenRow = contentEl.createDiv();
-    margenRow.style.cssText = "display:flex;gap:8px;margin-bottom:12px;align-items:center;";
+    margenRow.style.display = "flex";
+    margenRow.style.gap = "8px";
+    margenRow.style.marginBottom = "12px";
+    margenRow.style.alignItems = "center";
     new Setting(margenRow.createDiv()).setName("Margen (%)").addText((t) => {
       t.inputEl.type = "number";
       t.setValue(String(this.margen));
@@ -94,26 +103,30 @@ export class RecetaModal extends Modal {
         const row = tbody.createEl("tr");
         const nameTd = row.createEl("td");
         const nameInput = nameTd.createEl("input", { type: "text" });
-        nameInput.style.cssText = "width:100px;padding:2px 4px;border:1px solid var(--background-modifier-border);border-radius:3px;font-size:0.85em;";
+        nameInput.addClass("ordermanager-table-input");
+        nameInput.style.width = "100px";
         nameInput.value = item.nombre;
         nameInput.oninput = () => { item.nombre = nameInput.value; };
 
         const cantTd = row.createEl("td");
         const cantInput = cantTd.createEl("input", { type: "number" });
-        cantInput.style.cssText = "width:70px;padding:2px 4px;border:1px solid var(--background-modifier-border);border-radius:3px;font-size:0.85em;";
+        cantInput.addClass("ordermanager-table-input");
+        cantInput.style.width = "70px";
         cantInput.step = "0.01";
         cantInput.value = String(item.cantidad);
         cantInput.oninput = () => { item.cantidad = parseFloat(cantInput.value) || 0; updateDisplay(); };
 
         const unidadTd = row.createEl("td");
         const unidadInput = unidadTd.createEl("input", { type: "text" });
-        unidadInput.style.cssText = "width:50px;padding:2px 4px;border:1px solid var(--background-modifier-border);border-radius:3px;font-size:0.85em;";
+        unidadInput.addClass("ordermanager-table-input");
+        unidadInput.style.width = "50px";
         unidadInput.value = item.unidad;
         unidadInput.oninput = () => { item.unidad = unidadInput.value; };
 
         const costoTd = row.createEl("td");
         const costoInput = costoTd.createEl("input", { type: "number" });
-        costoInput.style.cssText = "width:80px;padding:2px 4px;border:1px solid var(--background-modifier-border);border-radius:3px;font-size:0.85em;";
+        costoInput.addClass("ordermanager-table-input");
+        costoInput.style.width = "80px";
         costoInput.step = "0.0001";
         costoInput.value = String(item.costo_unitario);
         costoInput.oninput = () => { item.costo_unitario = parseFloat(costoInput.value) || 0; updateDisplay(); };
@@ -124,12 +137,12 @@ export class RecetaModal extends Modal {
         const margenTd = row.createEl("td");
         const margenCheck = margenTd.createEl("input", { type: "checkbox" }) as HTMLInputElement;
         margenCheck.checked = item.aplicar_margen !== false;
-        margenCheck.style.cssText = "cursor:pointer;";
+        margenCheck.style.cursor = "pointer";
         margenCheck.onchange = () => { item.aplicar_margen = margenCheck.checked; updateDisplay(); };
 
         const delTd = row.createEl("td");
         const delBtn = delTd.createEl("button", { text: "\u00d7" });
-        delBtn.style.cssText = "padding:2px 8px;border:none;border-radius:4px;background:var(--color-red);color:#fff;cursor:pointer;";
+        delBtn.addClass("ordermanager-btn-del");
         delBtn.onclick = () => { this.receta.splice(idx, 1); renderTable(); updateDisplay(); };
       });
       updateSubtotals();
@@ -137,9 +150,9 @@ export class RecetaModal extends Modal {
     renderTable();
 
     const addRow = contentEl.createDiv();
-    addRow.style.cssText = "margin-top:8px;";
+    addRow.style.marginTop = "8px";
     const addBtn = addRow.createEl("button", { text: "+ Agregar insumo" });
-    addBtn.style.cssText = "padding:6px 14px;border:none;border-radius:4px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;";
+    addBtn.addClass("ordermanager-btn-accent");
     addBtn.onclick = () => {
       this.receta.push({ nombre: "", cantidad: 0, unidad: "g", costo_unitario: 0, aplicar_margen: true });
       renderTable();

@@ -1,6 +1,5 @@
-import { ItemView, WorkspaceLeaf, TFile } from "obsidian";
+import { ItemView, WorkspaceLeaf } from "obsidian";
 import type OrderManagerPlugin from "../main";
-import type { TransaccionData } from "../types";
 import { formatCurrency } from "../utils/currency";
 import { formatDate } from "../utils/date";
 import { TransaccionModal } from "../modals/transaccion-modal";
@@ -8,6 +7,7 @@ import { TicketModal } from "../modals/ticket-modal";
 import { exportToCSV, downloadCSV } from "../utils/export";
 import { VIEW_TYPE_DASHBOARD } from "./dashboard-view";
 import { t as i18n } from "../i18n";
+import { confirmAction } from "../utils/confirm";
 
 export const VIEW_TYPE_TRANSACCIONES = "ordermanager-transacciones";
 
@@ -37,7 +37,7 @@ export class TransaccionesView extends ItemView {
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", (leaf) => {
         if (leaf?.view === this && !this.firstRender) {
-          this.refresh();
+          void this.refresh();
         }
         this.firstRender = false;
       })
@@ -56,8 +56,7 @@ export class TransaccionesView extends ItemView {
       text: i18n("backToDashboard"),
       cls: "ordermanager-toolbar",
     });
-    backBtn.style.cssText =
-      "margin-bottom:12px;padding:6px 14px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-secondary);color:var(--text-muted);cursor:pointer;font-size:0.85em;";
+    backBtn.addClass("ordermanager-back-btn");
     backBtn.onclick = () => this.plugin.activateView(VIEW_TYPE_DASHBOARD);
 
     const transacciones = await this.plugin.dataManager.getTransacciones();
@@ -98,17 +97,17 @@ export class TransaccionesView extends ItemView {
       type: "number",
       placeholder: i18n("minAmount"),
     });
-    amountMin.style.cssText = "width:80px;";
+    amountMin.style.width = "80px";
     const amountMax = toolbar.createEl("input", {
       type: "number",
       placeholder: i18n("maxAmount"),
     });
-    amountMax.style.cssText = "width:80px;";
+    amountMax.style.width = "80px";
 
     let currentFiltered: typeof sorted = sorted;
 
     toolbar.createEl("button", { text: i18n("newTransaction"), cls: "" }).onclick = () => {
-      new TransaccionModal(this.plugin.app, this.plugin, () => this.refresh()).open();
+      new TransaccionModal(this.plugin.app, this.plugin, () => { void this.refresh(); }).open();
     };
 
     toolbar.createEl("button", {
@@ -183,8 +182,13 @@ export class TransaccionesView extends ItemView {
 
         const ticketTd = row.createEl("td");
         const ticketBtn = ticketTd.createEl("button", { text: "🎫" });
-        ticketBtn.style.cssText =
-          "padding:2px 6px;border:none;border-radius:4px;background:var(--background-secondary);cursor:pointer;font-size:1em;line-height:1;";
+        ticketBtn.style.padding = "2px 6px";
+        ticketBtn.style.border = "none";
+        ticketBtn.style.borderRadius = "4px";
+        ticketBtn.style.background = "var(--background-secondary)";
+        ticketBtn.style.cursor = "pointer";
+        ticketBtn.style.fontSize = "1em";
+        ticketBtn.style.lineHeight = "1";
         ticketBtn.setAttr("title", i18n("generateTicket"));
         ticketBtn.onclick = async (e: MouseEvent) => {
           e.stopPropagation();
@@ -195,20 +199,19 @@ export class TransaccionesView extends ItemView {
 
         const actionTd = row.createEl("td");
         const delBtn = actionTd.createEl("button", { text: "×" });
-        delBtn.style.cssText =
-          "padding:2px 8px;border:none;border-radius:4px;background:var(--color-red);color:#fff;cursor:pointer;font-size:1em;line-height:1;";
+        delBtn.addClass("ordermanager-btn-del");
         delBtn.onclick = async (e: MouseEvent) => {
           e.stopPropagation();
-          if (!confirm("¿Eliminar esta transacción?")) return;
+          if (!await confirmAction(this.plugin.app, "¿Eliminar esta transacción?")) return;
           await this.plugin.dataManager.deleteTransaccion(t.file);
-          this.refresh();
+          void this.refresh();
         };
 
         row.onclick = () => {
           new TransaccionModal(
             this.plugin.app,
             this.plugin,
-            () => this.refresh(),
+            () => { void this.refresh(); },
             d,
             t.file
           ).open();

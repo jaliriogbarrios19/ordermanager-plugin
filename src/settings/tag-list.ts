@@ -13,14 +13,18 @@ export function buildTagList(
     wrapper.empty();
     for (const item of items) {
       const tag = wrapper.createSpan({ cls: "ordermanager-tag" });
-      tag.style.cssText =
-        "display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--background-secondary);border-radius:12px;font-size:0.85em;";
+      tag.addClass("ordermanager-tag-pill");
+      tag.style.gap = "4px";
+      tag.style.padding = "4px 10px";
+      tag.style.borderRadius = "12px";
 
-      const label = tag.createSpan({ text: item });
+      tag.createSpan({ text: item });
 
       const removeBtn = tag.createSpan({ text: "×" });
-      removeBtn.style.cssText =
-        "cursor:pointer;font-weight:bold;color:var(--text-muted);margin-left:2px;";
+      removeBtn.style.cursor = "pointer";
+      removeBtn.style.fontWeight = "bold";
+      removeBtn.addClass("ordermanager-text-muted");
+      removeBtn.style.marginLeft = "2px";
       removeBtn.onclick = async () => {
         const filtered = items.filter((i) => i !== item);
         if (filtered.length !== items.length) {
@@ -44,12 +48,10 @@ export function buildTagList(
 
   const input = inputRow.createEl("input", { type: "text" });
   input.placeholder = "Nuevo valor...";
-  input.style.cssText =
-    "flex:1;padding:6px 10px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-primary);color:var(--text-normal);";
+  input.addClass("ordermanager-input-std");
 
   const addBtn = inputRow.createEl("button", { text: "Agregar" });
-  addBtn.style.cssText =
-    "padding:6px 14px;border:none;border-radius:4px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;font-weight:500;";
+  addBtn.addClass("ordermanager-btn-accent");
 
   addBtn.onclick = async () => {
     const value = input.value.trim();

@@ -16,7 +16,7 @@ export function formatCurrency(amount: number, currency: string = "USD"): string
 }
 
 export function parseAmount(value: string): number {
-  const cleaned = value.replace(/[^\d,.\-]/g, "").replace(/,/g, "");
+  const cleaned = value.replace(/[^\d,.-]/g, "").replace(/,/g, "");
   return parseFloat(cleaned) || 0;
 }
 

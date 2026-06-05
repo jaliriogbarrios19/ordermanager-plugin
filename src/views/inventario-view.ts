@@ -1,11 +1,11 @@
 import { ItemView, WorkspaceLeaf } from "obsidian";
 import type OrderManagerPlugin from "../main";
-import type { ProductoData } from "../types";
 import { ProductoModal } from "../modals/producto-modal";
 import { formatCurrency } from "../utils/currency";
 import { VIEW_TYPE_DASHBOARD } from "./dashboard-view";
 import { exportProductosCSV, downloadCSV } from "../utils/export";
 import { t as i18n } from "../i18n";
+import { confirmAction } from "../utils/confirm";
 
 export const VIEW_TYPE_INVENTARIO = "ordermanager-inventario";
 
@@ -41,8 +41,7 @@ export class InventarioView extends ItemView {
     const backBtn = container.createEl("button", { text: i18n("backToDashboard"),
       cls: "ordermanager-toolbar",
     });
-    backBtn.style.cssText =
-      "margin-bottom:12px;padding:6px 14px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-secondary);color:var(--text-muted);cursor:pointer;font-size:0.85em;";
+    backBtn.addClass("ordermanager-back-btn");
     backBtn.onclick = () => this.plugin.activateView(VIEW_TYPE_DASHBOARD);
 
     const toolbar = container.createDiv({ cls: "ordermanager-toolbar" });
@@ -60,7 +59,7 @@ export class InventarioView extends ItemView {
     }
 
     toolbar.createEl("button", { text: i18n("newProduct"), cls: "" }).onclick = () => {
-      new ProductoModal(this.plugin.app, this.plugin, () => this.refresh()).open();
+      new ProductoModal(this.plugin.app, this.plugin, () => { void this.refresh(); }).open();
     };
 
     toolbar.createEl("button", { text: "CSV", cls: "secondary" }).onclick = () => {
@@ -132,7 +131,8 @@ export class InventarioView extends ItemView {
         const stockMin = d.stock_minimo ?? 0;
         const stockEl = row.createEl("td");
         if (stockMin > 0 && stockVal <= stockMin) {
-          stockEl.style.cssText = "color:var(--color-red);font-weight:700;";
+          stockEl.style.color = "var(--color-red)";
+          stockEl.style.fontWeight = "700";
           stockEl.setText(`${stockVal} ⚠`);
         } else {
           stockEl.setText(String(stockVal));
@@ -142,20 +142,19 @@ export class InventarioView extends ItemView {
 
         const actionTd = row.createEl("td");
         const delBtn = actionTd.createEl("button", { text: "×" });
-        delBtn.style.cssText =
-          "padding:2px 8px;border:none;border-radius:4px;background:var(--color-red);color:#fff;cursor:pointer;font-size:1em;line-height:1;";
+        delBtn.addClass("ordermanager-btn-del");
         delBtn.onclick = async (e: MouseEvent) => {
           e.stopPropagation();
-          if (!confirm("¿Eliminar este producto?")) return;
+          if (!await confirmAction(this.plugin.app, "¿Eliminar este producto?")) return;
           await this.plugin.dataManager.deleteFile(p.file);
-          this.refresh();
+          void this.refresh();
         };
 
         row.onclick = () => {
           new ProductoModal(
             this.plugin.app,
             this.plugin,
-            () => this.refresh(),
+            () => { void this.refresh(); },
             d,
             p.file
           ).open();

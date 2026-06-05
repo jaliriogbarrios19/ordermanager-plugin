@@ -247,3 +247,126 @@
   padding-bottom: 8px;
   border-bottom: 1px solid var(--background-modifier-border);
 }
+
+/* Utility: standard input */
+.ordermanager-input-std {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+
+/* Utility: accent action button */
+.ordermanager-btn-accent {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 4px;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Utility: danger/delete small button */
+.ordermanager-btn-del {
+  padding: 2px 8px;
+  border: none;
+  border-radius: 4px;
+  background: var(--color-red);
+  color: #fff;
+  cursor: pointer;
+  font-size: 1em;
+  line-height: 1;
+}
+
+/* Utility: inline-flex tag pill */
+.ordermanager-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  font-size: 0.85em;
+}
+
+/* Utility: flex row with gap */
+.ordermanager-flex-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Utility: standard back button in views */
+.ordermanager-back-btn {
+  margin-bottom: 12px;
+  padding: 6px 14px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85em;
+}
+
+/* Badge for active book in settings */
+.ordermanager-badge-active {
+  font-size: 0.75em;
+  padding: 2px 8px;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-radius: 10px;
+}
+
+/* Book row in settings */
+.ordermanager-book-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  background: var(--background-secondary);
+  border-radius: 6px;
+}
+
+/* Inline rename button */
+.ordermanager-btn-rename {
+  padding: 3px 8px;
+  font-size: 0.8em;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+/* Compact input inside table cells (receta-modal, etc.) */
+.ordermanager-table-input {
+  padding: 2px 4px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 3px;
+  font-size: 0.85em;
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+
+/* Ticket print layout */
+.ordermanager-ticket {
+  font-family: -apple-system, sans-serif;
+  padding: 16px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  max-width: 380px;
+  margin: 0 auto;
+}
+
+/* Confirm dialog message */
+.ordermanager-confirm-msg {
+  margin-bottom: 16px;
+  font-size: 0.95em;
+}

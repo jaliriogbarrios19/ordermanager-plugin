@@ -1,4 +1,4 @@
-import { TFile, TFolder, Vault, normalizePath } from "obsidian";
+import { App, TFile, TFolder, normalizePath } from "obsidian";
 import { parseFrontmatterFromContent, buildMarkdownNote, stringifyYaml } from "./parser";
 import { clienteTemplate, proveedorTemplate, transaccionTemplate, deudaTemplate, productoTemplate } from "./templates";
 import type {
@@ -14,11 +14,15 @@ import { DEFAULT_CATEGORIAS } from "../types";
 import { now, today } from "../utils/date";
 
 export class DataManager {
-  private vault: Vault;
+  private app: App;
   private settings: OrderManagerSettings;
 
-  constructor(vault: Vault, settings: OrderManagerSettings) {
-    this.vault = vault;
+  private get vault(): App["vault"] {
+    return this.app.vault;
+  }
+
+  constructor(app: App, settings: OrderManagerSettings) {
+    this.app = app;
     this.settings = settings;
   }
 
@@ -223,9 +227,7 @@ export class DataManager {
     if (!comprobantePath) return;
     const file = this.vault.getAbstractFileByPath(comprobantePath);
     if (file instanceof TFile) {
-      await this.vault.delete(file);
-    } else if (await this.vault.adapter.exists(comprobantePath)) {
-      await this.vault.adapter.remove(comprobantePath);
+      await this.app.fileManager.trashFile(file);
     }
   }
 
@@ -238,7 +240,7 @@ export class DataManager {
     } catch {
       /* no comprobante or unreadable */
     }
-    await this.vault.delete(file);
+    await this.app.fileManager.trashFile(file);
   }
 
   private async readFrontmatter(file: TFile): Promise<Record<string, unknown>> {
@@ -313,7 +315,7 @@ export class DataManager {
   }
 
   async deleteFile(file: TFile): Promise<void> {
-    await this.vault.delete(file);
+    await this.app.fileManager.trashFile(file);
   }
 
   // ============= CLIENTES =============
@@ -614,7 +616,7 @@ export class DataManager {
           const parseArr = (field: unknown): string[] => {
             if (Array.isArray(field)) return field as string[];
             if (typeof field === "string") {
-              try { const parsed = JSON.parse(field); if (Array.isArray(parsed)) return parsed; } catch { /* */ }
+              try { const parsed = JSON.parse(field); if (Array.isArray(parsed)) return parsed as string[]; } catch { /* */ }
               if (field.includes(",")) return field.split(",");
             }
             return [];

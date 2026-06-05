@@ -1,10 +1,10 @@
-import { App, PluginSettingTab, Setting, DropdownComponent, Notice, TFile, TFolder, normalizePath } from "obsidian";
+import { App, PluginSettingTab, Setting, DropdownComponent, Notice, TFolder, normalizePath } from "obsidian";
 import type OrderManagerPlugin from "./main";
-import type { OrderManagerSettings } from "./types";
 import { FIAT_CURRENCIES, CRYPTO_CURRENCIES, MONEDA_SOURCES, DEFAULT_CATEGORIAS } from "./types";
-import { LANG_LABELS, type SupportedLang } from "./i18n";
+import { LANG_LABELS } from "./i18n";
 import { t } from "./i18n";
 import { fetchExchangeRates, rebaseRates } from "./utils/exchange";
+import { confirmAction } from "./utils/confirm";
 import { buildTagList } from "./settings/tag-list";
 
 export class OrderManagerSettingTab extends PluginSettingTab {
@@ -20,7 +20,7 @@ export class OrderManagerSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "OrderManager" });
+    new Setting(containerEl).setName("OrderManager").setHeading();
 
     const rootFolders = this.plugin.app.vault.getRoot().children
       .filter((c): c is TFolder => c instanceof TFolder)
@@ -119,7 +119,7 @@ export class OrderManagerSettingTab extends PluginSettingTab {
         });
       });
 
-    containerEl.createEl("h3", { text: "Tasas de cambio" });
+    new Setting(containerEl).setName("Tasas de cambio").setHeading();
 
     new Setting(containerEl)
       .setName("Moneda de referencia")
@@ -145,8 +145,7 @@ export class OrderManagerSettingTab extends PluginSettingTab {
     });
 
     const tagsWrapper = containerEl.createDiv();
-    tagsWrapper.style.cssText =
-      "display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;";
+    tagsWrapper.addClass("ordermanager-toolbar");
 
     const buildTagPanel = () => {
       tagsWrapper.empty();
@@ -159,15 +158,15 @@ export class OrderManagerSettingTab extends PluginSettingTab {
         const displayVal = valor * displayFactor;
 
         const tag = tagsWrapper.createDiv();
-        tag.style.cssText =
-          "display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--background-secondary);border:1px solid var(--background-modifier-border);border-radius:8px;font-size:0.85em;";
+        tag.addClass("ordermanager-tag-pill");
 
         const labelSpan = tag.createSpan({ text: label });
-        labelSpan.style.cssText = "font-weight:500;";
+        labelSpan.style.fontWeight = "500";
 
         const valInput = tag.createEl("input", { type: "number" });
-        valInput.style.cssText =
-          "width:100px;padding:2px 6px;border:1px solid var(--background-modifier-border);border-radius:3px;font-size:0.85em;background:var(--background-primary);color:var(--text-normal);";
+        valInput.addClass("ordermanager-table-input");
+        valInput.style.width = "100px";
+        valInput.style.padding = "2px 6px";
         valInput.step = "0.00000001";
         valInput.value = String(displayVal);
         valInput.onchange = async () => {
@@ -177,8 +176,7 @@ export class OrderManagerSettingTab extends PluginSettingTab {
         };
 
         const delBtn = tag.createEl("button", { text: "×" });
-        delBtn.style.cssText =
-          "padding:1px 7px;border:none;border-radius:4px;background:var(--color-red);color:#fff;cursor:pointer;font-size:0.9em;line-height:1;";
+        delBtn.addClass("ordermanager-btn-del");
         delBtn.onclick = async () => {
           delete this.plugin.settings.tasasCambio[code];
           await this.plugin.saveSettings();
@@ -190,8 +188,7 @@ export class OrderManagerSettingTab extends PluginSettingTab {
 
     if (Object.keys(this.plugin.settings.tasasCambio).length > 1) {
       const cleanBtn = containerEl.createEl("button", { text: "Limpiar todas" });
-      cleanBtn.style.cssText =
-        "padding:4px 12px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-secondary);color:var(--text-muted);cursor:pointer;font-size:0.8em;margin-bottom:8px;";
+      cleanBtn.addClass("ordermanager-btn-select");
       cleanBtn.onclick = async () => {
         this.plugin.settings.tasasCambio = { USD: 1 };
         this.plugin.settings.bcvPrice = 0;
@@ -202,18 +199,28 @@ export class OrderManagerSettingTab extends PluginSettingTab {
     }
 
     const addRow = containerEl.createDiv();
-    addRow.style.cssText = "display:flex;gap:8px;margin-bottom:8px;align-items:center;";
+    addRow.style.marginBottom = "8px";
+    addRow.addClass("ordermanager-flex-row");
     const comboWrapper = addRow.createDiv();
-    comboWrapper.style.cssText = "position:relative;flex:1;";
+    comboWrapper.style.position = "relative";
+    comboWrapper.style.flex = "1";
     const comboInput = comboWrapper.createEl("input", {
       type: "text",
       placeholder: "Buscar o escribir moneda...",
     });
-    comboInput.style.cssText =
-      "width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid var(--background-modifier-border);border-radius:4px;font-size:0.85em;";
+    comboInput.addClass("ordermanager-input-std");
     const comboList = comboWrapper.createDiv();
-    comboList.style.cssText =
-      "display:none;position:absolute;top:100%;left:0;right:0;max-height:180px;overflow-y:auto;background:var(--background-primary);border:1px solid var(--background-modifier-border);border-radius:4px;z-index:10;";
+    comboList.style.display = "none";
+    comboList.style.position = "absolute";
+    comboList.style.top = "100%";
+    comboList.style.left = "0";
+    comboList.style.right = "0";
+    comboList.style.maxHeight = "180px";
+    comboList.style.overflowY = "auto";
+    comboList.style.background = "var(--background-primary)";
+    comboList.style.border = "1px solid var(--background-modifier-border)";
+    comboList.style.borderRadius = "4px";
+    comboList.style.zIndex = "10";
 
     const filterCombo = () => {
       comboList.empty();
@@ -225,18 +232,21 @@ export class OrderManagerSettingTab extends PluginSettingTab {
       ).slice(0, 15);
       if (filtered.length === 0) {
         const noRes = comboList.createDiv({ text: "Escribí un código (ej: ARS)" });
-        noRes.style.cssText = "padding:8px;font-size:0.8em;color:var(--text-muted);";
+        noRes.addClass("ordermanager-text-muted");
+        noRes.style.padding = "8px";
+        noRes.style.fontSize = "0.8em";
       } else {
         for (const s of filtered) {
           const item = comboList.createDiv();
-          item.style.cssText =
-            "padding:6px 10px;cursor:pointer;font-size:0.85em;";
+          item.style.padding = "6px 10px";
+          item.style.cursor = "pointer";
+          item.style.fontSize = "0.85em";
           item.createSpan({ text: s.label });
           item.onmousedown = (e: MouseEvent) => {
             e.preventDefault();
             if (!this.plugin.settings.tasasCambio[s.code]) {
               this.plugin.settings.tasasCambio[s.code] = 1;
-              this.plugin.saveSettings();
+              void this.plugin.saveSettings();
               buildTagPanel();
             }
             comboInput.value = "";
@@ -246,15 +256,17 @@ export class OrderManagerSettingTab extends PluginSettingTab {
       }
       if (q.length >= 2) {
         const customItem = comboList.createDiv();
-        customItem.style.cssText =
-          "padding:6px 10px;cursor:pointer;font-size:0.85em;border-top:1px solid var(--background-modifier-border);";
+        customItem.style.padding = "6px 10px";
+        customItem.style.cursor = "pointer";
+        customItem.style.fontSize = "0.85em";
+        customItem.style.borderTop = "1px solid var(--background-modifier-border)";
         customItem.createSpan({ text: `Agregar "${q.toUpperCase()}" (personalizada)` });
         customItem.onmousedown = (e: MouseEvent) => {
           e.preventDefault();
           const code = q.toUpperCase();
           if (!this.plugin.settings.tasasCambio[code]) {
             this.plugin.settings.tasasCambio[code] = 1;
-            this.plugin.saveSettings();
+            void this.plugin.saveSettings();
             buildTagPanel();
           }
           comboInput.value = "";
@@ -267,12 +279,11 @@ export class OrderManagerSettingTab extends PluginSettingTab {
     comboInput.onfocus = () => filterCombo();
     comboInput.oninput = () => filterCombo();
     comboInput.onblur = () => {
-      setTimeout(() => { comboList.style.display = "none"; }, 150);
+      window.setTimeout(() => { comboList.style.display = "none"; }, 150);
     };
 
     const fetchBtn = addRow.createEl("button", { text: "Actualizar tasas" });
-    fetchBtn.style.cssText =
-      "padding:6px 14px;border:none;border-radius:4px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;font-weight:600;white-space:nowrap;";
+    fetchBtn.addClass("ordermanager-btn-accent");
     fetchBtn.onclick = async () => {
       fetchBtn.textContent = "Consultando...";
       fetchBtn.disabled = true;
@@ -317,7 +328,7 @@ export class OrderManagerSettingTab extends PluginSettingTab {
       });
     }
 
-    containerEl.createEl("h3", { text: t("books") });
+    new Setting(containerEl).setName(t("books")).setHeading();
     containerEl.createEl("p", {
       text: t("booksDesc"),
       cls: "setting-item-description",
@@ -328,7 +339,7 @@ export class OrderManagerSettingTab extends PluginSettingTab {
       if (existingWrapper) existingWrapper.remove();
 
       const booksWrapper = containerEl.createDiv({ cls: "ordermanager-books-list" });
-      booksWrapper.style.cssText = "margin-bottom:12px;";
+      booksWrapper.style.marginBottom = "12px";
 
       if (this.plugin.settings.libros.length === 0) {
         booksWrapper.createEl("p", {
@@ -338,20 +349,18 @@ export class OrderManagerSettingTab extends PluginSettingTab {
       } else {
         for (const libro of this.plugin.settings.libros) {
           const row = booksWrapper.createDiv();
-          row.style.cssText =
-            "display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:4px;background:var(--background-secondary);border-radius:6px;";
+          row.addClass("ordermanager-book-row");
 
           const nameSpan = row.createEl("span", { text: libro });
-          nameSpan.style.cssText = "flex:1;font-weight:500;";
+          nameSpan.style.flex = "1";
+          nameSpan.style.fontWeight = "500";
 
           if (libro === this.plugin.settings.libroActivo) {
             const badge = row.createEl("span", { text: "✓ Activo" });
-            badge.style.cssText =
-              "font-size:0.75em;padding:2px 8px;background:var(--interactive-accent);color:var(--text-on-accent);border-radius:10px;";
+            badge.addClass("ordermanager-badge-active");
           } else {
             const setBtn = row.createEl("button", { text: t("selectActive") });
-            setBtn.style.cssText =
-              "padding:3px 10px;font-size:0.8em;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-primary);cursor:pointer;";
+            setBtn.addClass("ordermanager-btn-select");
             setBtn.onclick = async () => {
               this.plugin.settings.libroActivo = libro;
               await this.plugin.saveSettings();
@@ -362,22 +371,18 @@ export class OrderManagerSettingTab extends PluginSettingTab {
           }
 
           const renameBtn = row.createEl("button", { text: "✎" });
-          renameBtn.style.cssText =
-            "padding:3px 8px;font-size:0.8em;border:none;border-radius:4px;background:transparent;cursor:pointer;color:var(--text-muted);";
+          renameBtn.addClass("ordermanager-btn-rename");
           renameBtn.onclick = () => {
             nameSpan.style.display = "none";
             renameBtn.style.display = "none";
             const editRow = row.createDiv();
-            editRow.style.cssText = "display:flex;gap:4px;flex:1;";
+            editRow.addClass("ordermanager-flex-row");
             const editInput = editRow.createEl("input", { type: "text", value: libro });
-            editInput.style.cssText =
-              "flex:1;padding:2px 6px;border:1px solid var(--interactive-accent);border-radius:3px;font-size:0.85em;background:var(--background-primary);color:var(--text-normal);";
+            editInput.addClass("ordermanager-input-std");
             const confirmBtn = editRow.createEl("button", { text: "✓" });
-            confirmBtn.style.cssText =
-              "padding:2px 8px;border:none;border-radius:3px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;font-size:0.85em;";
+            confirmBtn.addClass("ordermanager-btn-accent");
             const cancelBtn = editRow.createEl("button", { text: "×" });
-            cancelBtn.style.cssText =
-              "padding:2px 8px;border:none;border-radius:3px;background:transparent;color:var(--text-muted);cursor:pointer;font-size:0.85em;";
+            cancelBtn.addClass("ordermanager-btn-rename");
             const finishRename = async (newName: string) => {
               if (newName && newName !== libro && !this.plugin.settings.libros.includes(newName)) {
                 const oldPath = normalizePath(`${this.plugin.settings.baseFolder}/${libro}`);
@@ -396,25 +401,24 @@ export class OrderManagerSettingTab extends PluginSettingTab {
               }
               await renderBooks();
             };
-            confirmBtn.onclick = () => finishRename(editInput.value.trim());
-            cancelBtn.onclick = () => renderBooks();
+            confirmBtn.onclick = () => { void finishRename(editInput.value.trim()); };
+            cancelBtn.onclick = () => { void renderBooks(); };
             editInput.onkeydown = (e) => {
-              if (e.key === "Enter") finishRename(editInput.value.trim());
-              if (e.key === "Escape") renderBooks();
+              if (e.key === "Enter") { void finishRename(editInput.value.trim()); }
+              if (e.key === "Escape") { void renderBooks(); }
             };
             editInput.select();
             editInput.focus();
           };
 
           const delBtn = row.createEl("button", { text: "×" });
-          delBtn.style.cssText =
-            "padding:3px 8px;border:none;border-radius:4px;background:var(--color-red);color:#fff;cursor:pointer;font-size:0.8em;";
+          delBtn.addClass("ordermanager-btn-del");
           delBtn.onclick = async () => {
-            if (!confirm(`"${libro}": ${t("deleteBookConfirm")}`)) return;
+            if (!await confirmAction(this.plugin.app, `"${libro}": ${t("deleteBookConfirm")}`)) return;
             const bookPath = normalizePath(`${this.plugin.settings.baseFolder}/${libro}`);
             const bookFolder = this.plugin.app.vault.getAbstractFileByPath(bookPath);
             if (bookFolder instanceof TFolder) {
-              try { await this.plugin.app.vault.delete(bookFolder, true); } catch { /* */ }
+              try { await this.plugin.app.fileManager.trashFile(bookFolder); } catch { /* */ }
             }
             this.plugin.settings.libros = this.plugin.settings.libros.filter((l) => l !== libro);
             if (this.plugin.settings.libroActivo === libro) {
@@ -428,19 +432,18 @@ export class OrderManagerSettingTab extends PluginSettingTab {
       }
     };
 
-    renderBooks();
+    void renderBooks();
 
     const createRow = containerEl.createDiv();
-    createRow.style.cssText = "display:flex;gap:8px;margin-bottom:12px;";
+    createRow.style.marginBottom = "12px";
+    createRow.addClass("ordermanager-flex-row");
     const nameInput = createRow.createEl("input", {
       type: "text",
       placeholder: t("newBookName"),
     });
-    nameInput.style.cssText =
-      "flex:1;padding:6px 10px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-primary);color:var(--text-normal);";
+    nameInput.addClass("ordermanager-input-std");
     const createBtn = createRow.createEl("button", { text: t("createBook") });
-    createBtn.style.cssText =
-      "padding:6px 14px;border:none;border-radius:4px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;font-weight:500;white-space:nowrap;";
+    createBtn.addClass("ordermanager-btn-accent");
     createBtn.onclick = async () => {
       const name = nameInput.value.trim();
       if (!name) return;
@@ -466,7 +469,7 @@ export class OrderManagerSettingTab extends PluginSettingTab {
       if (e.key === "Enter") createBtn.click();
     };
 
-    containerEl.createEl("h3", { text: t("paymentMethods") });
+    new Setting(containerEl).setName(t("paymentMethods")).setHeading();
     buildTagList(
       containerEl,
       this.plugin.settings.mediosPago,
@@ -481,31 +484,31 @@ export class OrderManagerSettingTab extends PluginSettingTab {
       const cats = await this.plugin.dataManager.getCategorias();
       if (gen !== this.displayGen) return;
 
-      containerEl.createEl("h3", { text: t("incomeCategories") });
+      new Setting(containerEl).setName(t("incomeCategories")).setHeading();
       buildTagList(containerEl, cats.categoriasIngreso, async (values) => {
         cats.categoriasIngreso = values;
         await this.plugin.dataManager.saveCategorias(cats);
       });
 
-      containerEl.createEl("h3", { text: t("expenseCategories") });
+      new Setting(containerEl).setName(t("expenseCategories")).setHeading();
       buildTagList(containerEl, cats.categoriasEgreso, async (values) => {
         cats.categoriasEgreso = values;
         await this.plugin.dataManager.saveCategorias(cats);
       });
 
-      containerEl.createEl("h3", { text: t("productCategories") });
+      new Setting(containerEl).setName(t("productCategories")).setHeading();
       buildTagList(containerEl, cats.categoriasProducto, async (values) => {
         cats.categoriasProducto = values;
         await this.plugin.dataManager.saveCategorias(cats);
       });
 
-      containerEl.createEl("h3", { text: t("clientCategories") });
+      new Setting(containerEl).setName(t("clientCategories")).setHeading();
       buildTagList(containerEl, cats.categoriasCliente, async (values) => {
         cats.categoriasCliente = values;
         await this.plugin.dataManager.saveCategorias(cats);
       });
 
-      containerEl.createEl("h3", { text: "Categorías de proveedores" });
+      new Setting(containerEl).setName("Categorías de proveedores").setHeading();
       buildTagList(containerEl, cats.categoriasProveedor, async (values) => {
         cats.categoriasProveedor = values;
         await this.plugin.dataManager.saveCategorias(cats);

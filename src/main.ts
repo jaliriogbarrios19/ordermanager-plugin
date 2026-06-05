@@ -1,4 +1,4 @@
-import { Plugin, WorkspaceLeaf, FuzzySuggestModal, TFile, Modal, App, Notice } from "obsidian";
+import { Plugin, WorkspaceLeaf, FuzzySuggestModal, TFile, Modal, Notice, App } from "obsidian";
 
 import { OrderManagerSettingTab } from "./settings";
 import { DataManager } from "./data/manager";
@@ -25,7 +25,7 @@ export default class OrderManagerPlugin extends Plugin {
   async onload() {
     await this.loadSettings();
     setLang((this.settings.language || "es") as SupportedLang);
-    this.dataManager = new DataManager(this.app.vault, this.settings);
+    this.dataManager = new DataManager(this.app, this.settings);
 
     const { books: discovered, actualBasePath } = await this.dataManager.discoverBooks();
     let changed = false;
@@ -66,7 +66,7 @@ export default class OrderManagerPlugin extends Plugin {
       this.registerView(VIEW_TYPE_DEUDAS, (leaf) => new DeudasView(leaf, this));
 
       this.addRibbonIcon("landmark", "OrderManager", () => {
-        this.activateView(VIEW_TYPE_DASHBOARD);
+        void this.activateView(VIEW_TYPE_DASHBOARD);
       });
 
     this.addCommand({
@@ -86,12 +86,12 @@ export default class OrderManagerPlugin extends Plugin {
       name: "Nueva transacción",
       callback: () => {
         if (!this.settings.libroActivo) { new Notice(t("noBookSelectedDesc")); return; }
-        new TransaccionModal(this.app, this, async () => {
+        new TransaccionModal(this.app, this, () => { void (async () => {
           const view = this.getExistingView(VIEW_TYPE_TRANSACCIONES);
           if (view instanceof TransaccionesView) await view.refresh();
           const dash = this.getExistingView(VIEW_TYPE_DASHBOARD);
           if (dash instanceof DashboardView) await dash.refresh();
-        }).open();
+        })(); }).open();
       },
     });
 
@@ -106,12 +106,12 @@ export default class OrderManagerPlugin extends Plugin {
       name: "Nuevo cliente",
       callback: () => {
         if (!this.settings.libroActivo) { new Notice(t("noBookSelectedDesc")); return; }
-        new ClienteModal(this.app, this, async () => {
+        new ClienteModal(this.app, this, () => { void (async () => {
           const view = this.getExistingView(VIEW_TYPE_CLIENTES);
           if (view instanceof ClientesView) await view.refresh();
           const dash = this.getExistingView(VIEW_TYPE_DASHBOARD);
           if (dash instanceof DashboardView) await dash.refresh();
-        }).open();
+        })(); }).open();
       },
     });
 
@@ -126,12 +126,12 @@ export default class OrderManagerPlugin extends Plugin {
       name: "Nuevo proveedor",
       callback: () => {
         if (!this.settings.libroActivo) { new Notice(t("noBookSelectedDesc")); return; }
-        new ProveedorModal(this.app, this, async () => {
+        new ProveedorModal(this.app, this, () => { void (async () => {
           const view = this.getExistingView(VIEW_TYPE_PROVEEDORES);
           if (view instanceof ProveedoresView) await view.refresh();
           const dash = this.getExistingView(VIEW_TYPE_DASHBOARD);
           if (dash instanceof DashboardView) await dash.refresh();
-        }).open();
+        })(); }).open();
       },
     });
 
@@ -146,12 +146,12 @@ export default class OrderManagerPlugin extends Plugin {
       name: "Nuevo producto",
       callback: () => {
         if (!this.settings.libroActivo) { new Notice(t("noBookSelectedDesc")); return; }
-        new ProductoModal(this.app, this, async () => {
+        new ProductoModal(this.app, this, () => { void (async () => {
           const view = this.getExistingView(VIEW_TYPE_INVENTARIO);
           if (view instanceof InventarioView) await view.refresh();
           const dash = this.getExistingView(VIEW_TYPE_DASHBOARD);
           if (dash instanceof DashboardView) await dash.refresh();
-        }).open();
+        })(); }).open();
       },
     });
 
@@ -200,9 +200,10 @@ export default class OrderManagerPlugin extends Plugin {
   async loadSettings() {
     const data = await this.loadData();
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
-    if ((data as any)?.negocios && !this.settings.libros.length) {
-      this.settings.libros = (data as any).negocios;
-      this.settings.libroActivo = (data as any).negocioActivo || (data as any).negocios[0];
+    const legacy = data as Record<string, unknown> | undefined;
+    if (legacy?.negocios && Array.isArray(legacy.negocios) && !this.settings.libros.length) {
+      this.settings.libros = legacy.negocios as string[];
+      this.settings.libroActivo = (legacy.negocioActivo as string) || this.settings.libros[0];
       await this.saveSettings();
     }
   }
@@ -219,6 +220,7 @@ export default class OrderManagerPlugin extends Plugin {
 
 class GlobalSearchModal extends FuzzySuggestModal<{ name: string; type: string; file: TFile }> {
   plugin: OrderManagerPlugin;
+  private _items: Array<{ name: string; type: string; file: TFile }> = [];
 
   constructor(app: import("obsidian").App, plugin: OrderManagerPlugin) {
     super(app);
@@ -226,7 +228,7 @@ class GlobalSearchModal extends FuzzySuggestModal<{ name: string; type: string; 
   }
 
   getItems(): { name: string; type: string; file: TFile }[] {
-    return (this as any)._items || [];
+    return this._items;
   }
 
   getItemText(item: { name: string; type: string; file: TFile }): string {
@@ -234,7 +236,7 @@ class GlobalSearchModal extends FuzzySuggestModal<{ name: string; type: string; 
   }
 
   async onOpen() {
-    super.onOpen();
+    void super.onOpen();
     const dm = this.plugin.dataManager;
     const [clientes, proveedores, productos, deudas, transacciones] = await Promise.all([
       dm.getClientes(), dm.getProveedores(), dm.getProductos(), dm.getDeudas(), dm.getTransacciones(),
@@ -247,12 +249,11 @@ class GlobalSearchModal extends FuzzySuggestModal<{ name: string; type: string; 
     for (const d of deudas) items.push({ name: d.data.descripcion || "Deuda", type: "Deuda", file: d.file });
     for (const t of transacciones) items.push({ name: t.data.descripcion || "Transacción", type: `Transacción (${t.data.fecha})`, file: t.file });
 
-    (this as any)._items = items;
-    (this as any).updateSuggestions();
+    this._items = items;
   }
 
   onChooseItem(item: { name: string; type: string; file: TFile }): void {
-    this.plugin.app.workspace.getLeaf("tab").openFile(item.file);
+    void this.plugin.app.workspace.getLeaf("tab").openFile(item.file);
   }
 }
 
@@ -275,10 +276,10 @@ class OnboardingModal extends Modal {
       contentEl.createEl("p", { text: t("createBookCTA"), cls: "setting-item-description" });
 
       const row = contentEl.createDiv();
-      row.style.cssText = "display:flex;gap:8px;margin:12px 0;";
+      row.addClass("ordermanager-flex-row");
+      row.style.margin = "12px 0";
       const input = row.createEl("input", { type: "text", placeholder: t("newBookName") });
-      input.style.cssText =
-        "flex:1;padding:6px 10px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-primary);color:var(--text-normal);";
+      input.addClass("ordermanager-input-std");
 
       const createBtn = row.createEl("button", { text: t("createBook"), cls: "mod-cta" });
       createBtn.onclick = async () => {
@@ -296,11 +297,11 @@ class OnboardingModal extends Modal {
 
       input.onkeydown = (e) => { if (e.key === "Enter") createBtn.click(); };
       input.addEventListener("focus", () => {});
-      setTimeout(() => input.focus(), 50);
+      window.setTimeout(() => input.focus(), 50);
     } else {
       contentEl.createEl("p", { text: `Libros encontrados: ${this.plugin.settings.libros.join(", ")}` });
       const btn = contentEl.createEl("button", { text: "Entendido", cls: "mod-cta" });
-      btn.style.cssText = "margin-top:16px;";
+      btn.style.marginTop = "16px";
       btn.onclick = async () => {
         this.plugin.settings.onboardingComplete = true;
         await this.plugin.saveSettings();

@@ -1,10 +1,10 @@
 import { ItemView, WorkspaceLeaf, normalizePath } from "obsidian";
 import type OrderManagerPlugin from "../main";
-import type { ClienteData } from "../types";
 import { ClienteModal } from "../modals/cliente-modal";
 import { VIEW_TYPE_DASHBOARD } from "./dashboard-view";
 import { exportClientesCSV, downloadCSV } from "../utils/export";
 import { t as i18n } from "../i18n";
+import { confirmAction } from "../utils/confirm";
 
 export const VIEW_TYPE_CLIENTES = "ordermanager-clientes";
 
@@ -42,8 +42,7 @@ export class ClientesView extends ItemView {
       text: i18n("backToDashboard"),
       cls: "ordermanager-toolbar",
     });
-    backBtn.style.cssText =
-      "margin-bottom:12px;padding:6px 14px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-secondary);color:var(--text-muted);cursor:pointer;font-size:0.85em;";
+    backBtn.addClass("ordermanager-back-btn");
     backBtn.onclick = () => this.plugin.activateView(VIEW_TYPE_DASHBOARD);
 
     const toolbar = container.createDiv({ cls: "ordermanager-toolbar" });
@@ -54,7 +53,7 @@ export class ClientesView extends ItemView {
     });
 
     toolbar.createEl("button", { text: i18n("newClient"), cls: "" }).onclick = () => {
-      new ClienteModal(this.plugin.app, this.plugin, () => this.refresh()).open();
+      new ClienteModal(this.plugin.app, this.plugin, () => { void this.refresh(); }).open();
     };
 
     toolbar.createEl("button", { text: "CSV", cls: "secondary" }).onclick = () => {
@@ -105,12 +104,14 @@ export class ClientesView extends ItemView {
         row.createEl("td", { text: d.categoria || "—" });
 
         const actionTd = row.createEl("td");
-        actionTd.style.cssText = "display:flex;gap:4px;";
+        actionTd.addClass("ordermanager-flex-row");
+        actionTd.style.gap = "4px";
 
         const facturaBtn = actionTd.createEl("button", { text: "📄" });
         facturaBtn.title = "Generar factura";
-        facturaBtn.style.cssText =
-          "padding:2px 6px;border:none;border-radius:4px;background:var(--interactive-accent);color:var(--text-on-accent);cursor:pointer;font-size:0.85em;";
+        facturaBtn.addClass("ordermanager-btn-accent");
+        facturaBtn.style.padding = "2px 6px";
+        facturaBtn.style.fontSize = "0.85em";
         facturaBtn.onclick = async (e: MouseEvent) => {
           e.stopPropagation();
           const allTrans = await this.plugin.dataManager.getTransacciones();
@@ -150,24 +151,23 @@ export class ClientesView extends ItemView {
           await this.plugin.dataManager.ensureFolder(folder);
           const filename = `factura-${d.nombre.replace(/[\\/:*?"<>|]/g, "-")}-${new Date().toISOString().split("T")[0]}`;
           const file = await this.plugin.app.vault.create(normalizePath(`${folder}/${filename}.md`), content);
-          this.plugin.app.workspace.getLeaf("tab").openFile(file);
+          void this.plugin.app.workspace.getLeaf("tab").openFile(file);
         };
 
         const delBtn = actionTd.createEl("button", { text: "×" });
-        delBtn.style.cssText =
-          "padding:2px 8px;border:none;border-radius:4px;background:var(--color-red);color:#fff;cursor:pointer;font-size:1em;line-height:1;";
+        delBtn.addClass("ordermanager-btn-del");
         delBtn.onclick = async (e: MouseEvent) => {
           e.stopPropagation();
-          if (!confirm("¿Eliminar este cliente?")) return;
+          if (!await confirmAction(this.plugin.app, "¿Eliminar este cliente?")) return;
           await this.plugin.dataManager.deleteFile(c.file);
-          this.refresh();
+          void this.refresh();
         };
 
         row.onclick = () => {
           new ClienteModal(
             this.plugin.app,
             this.plugin,
-            () => this.refresh(),
+            () => { void this.refresh(); },
             d,
             c.file
           ).open();
