@@ -68,7 +68,7 @@ export class DashboardView extends ItemView {
         text: i18n("noBookSelectedDesc"),
         cls: "ordermanager-text-muted",
       });
-      msg.style.margin = "16px 0";
+      msg.setCssProps({margin: "16px 0"});
       return;
     }
 
@@ -107,7 +107,7 @@ export class DashboardView extends ItemView {
       const switchRow = container.createDiv({ cls: "ordermanager-toolbar" });
       const bookLbl = switchRow.createEl("span", { text: `${i18n("book")}:` });
       bookLbl.addClass("ordermanager-text-muted");
-      bookLbl.style.fontSize = "0.85em";
+      bookLbl.setCssProps({fontSize: "0.85em"});
       const selector = switchRow.createEl("select");
       for (const n of this.plugin.settings.libros) {
         const opt = selector.createEl("option", { text: n });
@@ -125,7 +125,7 @@ export class DashboardView extends ItemView {
     const curRow = container.createDiv({ cls: "ordermanager-toolbar" });
     const curLbl = curRow.createEl("span", { text: "Moneda:" });
     curLbl.addClass("ordermanager-text-muted");
-    curLbl.style.fontSize = "0.85em";
+    curLbl.setCssProps({fontSize: "0.85em"});
     let displayCurrency = this.plugin.settings.tasaReferencia || "USD";
     const curSelector = curRow.createEl("select");
     const availableCurrencies = Object.keys(this.plugin.settings.tasasCambio || {}).filter((k) => !k.startsWith("_"));
@@ -140,15 +140,17 @@ export class DashboardView extends ItemView {
     };
 
     const updateRatesBtn = curRow.createEl("button", { text: "Actualizar tasas" });
-    updateRatesBtn.style.marginLeft = "8px";
-    updateRatesBtn.style.padding = "4px 12px";
-    updateRatesBtn.style.border = "1px solid var(--background-modifier-border)";
-    updateRatesBtn.style.borderRadius = "4px";
-    updateRatesBtn.style.background = "var(--background-secondary)";
-    updateRatesBtn.style.color = "var(--text-muted)";
-    updateRatesBtn.style.cursor = "pointer";
-    updateRatesBtn.style.fontSize = "0.8em";
-    updateRatesBtn.style.whiteSpace = "nowrap";
+    updateRatesBtn.setCssProps({
+      marginLeft: "8px",
+      padding: "4px 12px",
+      border: "1px solid var(--background-modifier-border)",
+      borderRadius: "4px",
+      background: "var(--background-secondary)",
+      color: "var(--text-muted)",
+      cursor: "pointer",
+      fontSize: "0.8em",
+      whiteSpace: "nowrap",
+    });
     updateRatesBtn.onclick = async () => {
       updateRatesBtn.textContent = "⏳";
       updateRatesBtn.disabled = true;
@@ -182,7 +184,7 @@ export class DashboardView extends ItemView {
     const periodRow = container.createDiv({ cls: "ordermanager-toolbar" });
     const periodLbl = periodRow.createEl("span", { text: `${i18n("period")}:` });
     periodLbl.addClass("ordermanager-text-muted");
-    periodLbl.style.fontSize = "0.85em";
+    periodLbl.setCssProps({fontSize: "0.85em"});
     const periodSelector = periodRow.createEl("select");
     periodSelector.createEl("option", { text: i18n("thisMonth"), value: "month" });
     periodSelector.createEl("option", { text: i18n("thisWeek"), value: "week" });
@@ -194,23 +196,24 @@ export class DashboardView extends ItemView {
     periodSelector.value = "month";
 
     const customRow = periodRow.createDiv();
-    customRow.style.display = "none";
-    customRow.style.marginLeft = "8px";
+    customRow.setCssProps({display: "none", marginLeft: "8px"});
     const dateFromInput = customRow.createEl("input", { type: "date" });
-    dateFromInput.style.padding = "4px 8px";
-    dateFromInput.style.border = "1px solid var(--background-modifier-border)";
-    dateFromInput.style.borderRadius = "4px";
-    dateFromInput.style.fontSize = "0.85em";
+    dateFromInput.setCssProps({
+      padding: "4px 8px",
+      border: "1px solid var(--background-modifier-border)",
+      borderRadius: "4px",
+      fontSize: "0.85em",
+    });
     const dateToInput = customRow.createEl("input", { type: "date" });
-    dateToInput.style.padding = "4px 8px";
-    dateToInput.style.border = "1px solid var(--background-modifier-border)";
-    dateToInput.style.borderRadius = "4px";
-    dateToInput.style.fontSize = "0.85em";
+    dateToInput.setCssProps({
+      padding: "4px 8px",
+      border: "1px solid var(--background-modifier-border)",
+      borderRadius: "4px",
+      fontSize: "0.85em",
+    });
     const applyBtn = customRow.createEl("button", { text: i18n("apply") });
     applyBtn.addClass("ordermanager-btn-accent");
-    applyBtn.style.padding = "4px 12px";
-    applyBtn.style.fontSize = "0.85em";
-    applyBtn.style.marginLeft = "4px";
+    applyBtn.setCssProps({padding: "4px 12px", fontSize: "0.85em", marginLeft: "4px"});
 
     const kpiGrid = container.createDiv({ cls: "ordermanager-kpi-grid" });
     const resumenEl = container.createDiv();
@@ -267,11 +270,13 @@ export class DashboardView extends ItemView {
       });
       if (lowStock.length > 0) {
         const alertDiv = resumenEl.createDiv();
-        alertDiv.style.marginTop = "8px";
-        alertDiv.style.padding = "8px 12px";
-        alertDiv.style.background = "rgba(var(--color-red-rgb),0.1)";
-        alertDiv.style.border = "1px solid var(--color-red)";
-        alertDiv.style.borderRadius = "4px";
+        alertDiv.setCssProps({
+          marginTop: "8px",
+          padding: "8px 12px",
+          background: "rgba(var(--color-red-rgb),0.1)",
+          border: "1px solid var(--color-red)",
+          borderRadius: "4px",
+        });
         alertDiv.createEl("strong", { text: `⚠ Stock bajo (${lowStock.length}): ` });
         alertDiv.createSpan({
           text: lowStock.map((p) => `${p.data.nombre} (${p.data.stock})`).join(", "),
@@ -290,15 +295,16 @@ export class DashboardView extends ItemView {
 
       if (upcoming.length > 0) {
         const dueDiv = resumenEl.createDiv();
-        dueDiv.style.marginTop = "8px";
-        dueDiv.style.padding = "8px 12px";
-        dueDiv.style.background = "rgba(var(--color-yellow-rgb),0.1)";
-        dueDiv.style.border = "1px solid var(--color-yellow)";
-        dueDiv.style.borderRadius = "4px";
+        dueDiv.setCssProps({
+          marginTop: "8px",
+          padding: "8px 12px",
+          background: "rgba(var(--color-yellow-rgb),0.1)",
+          border: "1px solid var(--color-yellow)",
+          borderRadius: "4px",
+        });
         dueDiv.createEl("strong", { text: `📅 Próximos vencimientos (${upcoming.length}):` });
         const dueList = dueDiv.createEl("div");
-        dueList.style.marginTop = "4px";
-        dueList.style.fontSize = "0.85em";
+        dueList.setCssProps({marginTop: "4px", fontSize: "0.85em"});
         for (const d of upcoming) {
           const row = dueList.createDiv();
           row.createSpan({ text: `${d.data.fecha_vencimiento} — ` });
@@ -343,7 +349,7 @@ export class DashboardView extends ItemView {
           const compTd = row.createEl("td");
           if (d.comprobante) {
             const icon = compTd.createEl("span", { text: "📎" });
-            icon.style.cursor = "pointer";
+            icon.setCssProps({cursor: "pointer"});
             icon.setAttr("title", d.comprobante + " — Click para abrir");
             icon.onclick = (e: MouseEvent) => {
               e.stopPropagation();
@@ -390,16 +396,12 @@ export class DashboardView extends ItemView {
           .sort((a, b) => b[1].total - a[1].total)
           .slice(0, 5);
         const topSection = topProductsEl.createDiv();
-        topSection.style.marginBottom = "16px";
+        topSection.setCssProps({marginBottom: "16px"});
         const topBtn = topSection.createEl("button", { text: i18n("topProducts") });
         topBtn.addClass("ordermanager-btn-accent");
-        topBtn.style.padding = "8px 16px";
-        topBtn.style.fontWeight = "600";
-        topBtn.style.fontSize = "0.9em";
-        topBtn.style.width = "100%";
+        topBtn.setCssProps({padding: "8px 16px", fontWeight: "600", fontSize: "0.9em", width: "100%"});
         const topContent = topSection.createDiv();
-        topContent.style.display = "none";
-        topContent.style.marginTop = "8px";
+        topContent.setCssProps({display: "none", marginTop: "8px"});
         const topTable = topContent.createEl("table", { cls: "ordermanager-table" });
         const tHead = topTable.createEl("thead");
         const hRow = tHead.createEl("tr");
@@ -414,7 +416,7 @@ export class DashboardView extends ItemView {
           row.createEl("td", { text: formatCurrency(data.total, showCurrency) });
         }
         topBtn.onclick = () => {
-          topContent.style.display = topContent.style.display === "none" ? "block" : "none";
+          topContent.setCssProps({display: topContent.style.display === "none" ? "block" : "none"});
           topBtn.textContent = topContent.style.display === "none" ? i18n("topProducts") : i18n("hideTop");
         };
       }
@@ -426,34 +428,34 @@ export class DashboardView extends ItemView {
         periodStart = monthStart();
         periodEnd = monthEnd();
         periodLabel = "Este mes";
-        customRow.style.display = "none";
+        customRow.setCssProps({display: "none"});
       } else if (val === "week") {
         periodStart = weekStart();
         periodEnd = weekEnd();
         periodLabel = "Esta semana";
-        customRow.style.display = "none";
+        customRow.setCssProps({display: "none"});
       } else if (val === "day") {
         periodStart = today();
         periodEnd = today();
         periodLabel = "Hoy";
-        customRow.style.display = "none";
+        customRow.setCssProps({display: "none"});
       } else if (val === "year") {
         periodStart = yearStart();
         periodEnd = yearEnd();
         periodLabel = "Este año";
-        customRow.style.display = "none";
+        customRow.setCssProps({display: "none"});
       } else if (val === "quarter") {
         periodStart = quarterStart();
         periodEnd = quarterEnd();
         periodLabel = "Este trimestre";
-        customRow.style.display = "none";
+        customRow.setCssProps({display: "none"});
       } else if (val === "lastyear") {
         periodStart = lastYearStart();
         periodEnd = lastYearEnd();
         periodLabel = "Año pasado";
-        customRow.style.display = "none";
+        customRow.setCssProps({display: "none"});
       } else {
-        customRow.style.display = "inline-block";
+        customRow.setCssProps({display: "inline-block"});
         return;
       }
       renderPeriodData();

@@ -186,7 +186,7 @@ export default class OrderManagerPlugin extends Plugin {
       }
     }
 
-    if (leaf) workspace.revealLeaf(leaf);
+    if (leaf) void workspace.revealLeaf(leaf);
   }
 
   getExistingView(viewType: string) {
@@ -277,7 +277,7 @@ class OnboardingModal extends Modal {
 
       const row = contentEl.createDiv();
       row.addClass("ordermanager-flex-row");
-      row.style.margin = "12px 0";
+      row.setCssProps({margin: "12px 0"});
       const input = row.createEl("input", { type: "text", placeholder: t("newBookName") });
       input.addClass("ordermanager-input-std");
 
@@ -301,7 +301,7 @@ class OnboardingModal extends Modal {
     } else {
       contentEl.createEl("p", { text: `Libros encontrados: ${this.plugin.settings.libros.join(", ")}` });
       const btn = contentEl.createEl("button", { text: "Entendido", cls: "mod-cta" });
-      btn.style.marginTop = "16px";
+      btn.setCssProps({marginTop: "16px"});
       btn.onclick = async () => {
         this.plugin.settings.onboardingComplete = true;
         await this.plugin.saveSettings();

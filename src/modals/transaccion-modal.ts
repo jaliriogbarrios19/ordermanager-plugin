@@ -187,8 +187,7 @@ export class TransaccionModal extends Modal {
           cls: "ordermanager-text-muted",
         });
         const p = this.deudaContainer.querySelector("p") as HTMLElement;
-        p.style.fontSize = "0.85em";
-        p.style.margin = "8px 0";
+        p.setCssProps({fontSize: "0.85em", margin: "8px 0"});
         return;
       }
 
@@ -283,13 +282,11 @@ export class TransaccionModal extends Modal {
 
       const resumen = this.creditoContainer.createDiv();
       resumen.addClass("ordermanager-text-muted");
-      resumen.style.fontSize = "0.9em";
-      resumen.style.marginBottom = "8px";
+      resumen.setCssProps({fontSize: "0.9em", marginBottom: "8px"});
       const totalLabel = this.data.monto_total || this.data.monto || 0;
       resumen.createSpan({ text: `${t("totalAmount")}: ` });
       const totalVal = resumen.createSpan({ text: formatCurrency(totalLabel, this.data.moneda || "USD") });
-      totalVal.style.fontWeight = "600";
-      totalVal.style.color = "var(--text-normal)";
+      totalVal.setCssProps({fontWeight: "600", color: "var(--text-normal)"});
 
       new Setting(this.creditoContainer).setName(t("paidAmount")).addText((text) => {
         text.inputEl.type = "number";
@@ -548,7 +545,7 @@ export class TransaccionModal extends Modal {
     };
 
     this.productosListEl = form.createDiv();
-    this.productosListEl.style.marginBottom = "12px";
+    this.productosListEl.setCssProps({marginBottom: "12px"});
     buildProductosList();
 
     new Setting(form).setName(t("amount")).addText((text) => {
@@ -623,7 +620,7 @@ export class TransaccionModal extends Modal {
     compInfo.createDiv({ cls: "setting-item-name", text: t("receipt") });
     const compControl = compRow.createDiv({ cls: "setting-item-control" });
     const compPreview = form.createDiv();
-    compPreview.style.margin = "4px 0 12px 0";
+    compPreview.setCssProps({margin: "4px 0 12px 0"});
 
     const renderPreview = () => {
       compPreview.empty();
@@ -636,12 +633,7 @@ export class TransaccionModal extends Modal {
       if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(ext)) {
         const img = compPreview.createEl("img");
         img.src = resourceUrl;
-        img.style.maxWidth = "100%";
-        img.style.maxHeight = "300px";
-        img.style.marginTop = "8px";
-        img.style.borderRadius = "4px";
-        img.style.border = "1px solid var(--background-modifier-border)";
-        img.style.cursor = "pointer";
+        img.setCssProps({maxWidth: "100%", maxHeight: "300px", marginTop: "8px", borderRadius: "4px", border: "1px solid var(--background-modifier-border)", cursor: "pointer"});
         img.setAttr("title", "Click para abrir en tamaño completo");
         img.onclick = () => {
           void this.app.workspace.openLinkText(this.data.comprobante!, "", false);
@@ -660,19 +652,13 @@ export class TransaccionModal extends Modal {
       if (this.data.comprobante) {
         const fileName = this.data.comprobante.split("/").pop() || this.data.comprobante;
         const link = compControl.createEl("a", { text: fileName });
-        link.style.color = "var(--interactive-accent)";
-        link.style.cursor = "pointer";
-        link.style.textDecoration = "underline";
-        link.style.marginRight = "8px";
-        link.style.fontSize = "0.9em";
+        link.setCssProps({color: "var(--interactive-accent)", cursor: "pointer", textDecoration: "underline", marginRight: "8px", fontSize: "0.9em"});
         link.onclick = () => {
           void this.app.workspace.openLinkText(this.data.comprobante!, "", false);
         };
 
         const changeBtn = compControl.createEl("button", { text: "Cambiar" });
-        changeBtn.style.padding = "4px 8px";
-        changeBtn.style.fontSize = "0.85em";
-        changeBtn.style.marginRight = "6px";
+        changeBtn.setCssProps({padding: "4px 8px", fontSize: "0.85em", marginRight: "6px"});
         changeBtn.onclick = () => pickFile();
 
         const removeBtn = compControl.createEl("button", { text: "×" });
@@ -685,11 +671,9 @@ export class TransaccionModal extends Modal {
       } else {
         const span = compControl.createEl("span", { text: "Sin adjuntar" });
         span.addClass("ordermanager-text-muted");
-        span.style.fontSize = "0.85em";
-        span.style.marginRight = "8px";
+        span.setCssProps({fontSize: "0.85em", marginRight: "8px"});
         const attachBtn = compControl.createEl("button", { text: "Adjuntar" });
-        attachBtn.style.padding = "4px 8px";
-        attachBtn.style.fontSize = "0.85em";
+        attachBtn.setCssProps({padding: "4px 8px", fontSize: "0.85em"});
         attachBtn.onclick = () => pickFile();
       }
       renderPreview();

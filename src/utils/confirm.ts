@@ -1,11 +1,11 @@
-import { App, Modal, Setting } from "obsidian";
+import { App, Modal } from "obsidian";
 
 class ConfirmModal extends Modal {
   private resolve: (value: boolean) => void;
 
   constructor(app: App, message: string) {
     super(app);
-    this.resolve = () => {};
+    this.resolve = (_value: boolean) => {};
     this.onResolve = this.onResolve.bind(this);
     this.setMessage(message);
   }
@@ -27,14 +27,19 @@ class ConfirmModal extends Modal {
       this.onResolve(true);
   }
 
-  open(): Promise<boolean> {
-    return new Promise((resolve) => {
+  show(): Promise<boolean> {
+    const promise = new Promise<boolean>((resolve) => {
       this.resolve = resolve;
-      super.open();
     });
+    super.open();
+    return promise;
+  }
+
+  onClose() {
+    this.contentEl.empty();
   }
 }
 
 export function confirmAction(app: App, message: string): Promise<boolean> {
-  return new ConfirmModal(app, message).open();
+  return new ConfirmModal(app, message).show();
 }

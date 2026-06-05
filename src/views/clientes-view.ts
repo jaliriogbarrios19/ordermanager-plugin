@@ -105,13 +105,12 @@ export class ClientesView extends ItemView {
 
         const actionTd = row.createEl("td");
         actionTd.addClass("ordermanager-flex-row");
-        actionTd.style.gap = "4px";
+        actionTd.setCssProps({gap: "4px"});
 
         const facturaBtn = actionTd.createEl("button", { text: "📄" });
         facturaBtn.title = "Generar factura";
         facturaBtn.addClass("ordermanager-btn-accent");
-        facturaBtn.style.padding = "2px 6px";
-        facturaBtn.style.fontSize = "0.85em";
+        facturaBtn.setCssProps({padding: "2px 6px", fontSize: "0.85em"});
         facturaBtn.onclick = async (e: MouseEvent) => {
           e.stopPropagation();
           const allTrans = await this.plugin.dataManager.getTransacciones();

@@ -43,7 +43,7 @@ export function renderChart(
   if (buckets.length < 2) return;
 
   const chartEl = chartContainer.createDiv();
-  chartEl.style.margin = "16px 0";
+  chartEl.setCssProps({margin: "16px 0"});
   chartEl.createEl("div", { cls: "ordermanager-section-title", text: periodLabel });
 
   const data = buckets.map((b) => {
@@ -62,9 +62,7 @@ export function renderChart(
 
   const svg = activeDocument.createElementNS("http://www.w3.org/2000/svg", "svg") as unknown as SVGSVGElement;
   svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
-  svg.style.width = "100%";
-  svg.style.maxWidth = "400px";
-  svg.style.marginTop = "8px";
+  svg.setCssProps({width: "100%", maxWidth: "400px", marginTop: "8px"});
   chartEl.appendChild(svg as unknown as Node);
 
   data.forEach((d, i) => {
@@ -102,10 +100,9 @@ export function renderChart(
 
   const leyenda = chartEl.createDiv();
   leyenda.addClass("ordermanager-flex-row");
-  leyenda.style.gap = "16px";
-  leyenda.style.fontSize = "0.75em";
+  leyenda.setCssProps({gap: "16px", fontSize: "0.75em"});
   leyenda.addClass("ordermanager-text-muted");
-  leyenda.style.marginTop = "4px";
+  leyenda.setCssProps({marginTop: "4px"});
   const ingLeg = leyenda.createEl("span");
   ingLeg.createSpan({ text: "■", attr: { style: "color:var(--color-green);" } });
   ingLeg.createSpan({ text: " Ingresos" });

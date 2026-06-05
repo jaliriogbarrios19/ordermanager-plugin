@@ -161,12 +161,11 @@ export class OrderManagerSettingTab extends PluginSettingTab {
         tag.addClass("ordermanager-tag-pill");
 
         const labelSpan = tag.createSpan({ text: label });
-        labelSpan.style.fontWeight = "500";
+        labelSpan.setCssProps({fontWeight: "500"});
 
         const valInput = tag.createEl("input", { type: "number" });
         valInput.addClass("ordermanager-table-input");
-        valInput.style.width = "100px";
-        valInput.style.padding = "2px 6px";
+        valInput.setCssProps({width: "100px", padding: "2px 6px"});
         valInput.step = "0.00000001";
         valInput.value = String(displayVal);
         valInput.onchange = async () => {
@@ -199,28 +198,29 @@ export class OrderManagerSettingTab extends PluginSettingTab {
     }
 
     const addRow = containerEl.createDiv();
-    addRow.style.marginBottom = "8px";
+    addRow.setCssProps({marginBottom: "8px"});
     addRow.addClass("ordermanager-flex-row");
     const comboWrapper = addRow.createDiv();
-    comboWrapper.style.position = "relative";
-    comboWrapper.style.flex = "1";
+    comboWrapper.setCssProps({position: "relative", flex: "1"});
     const comboInput = comboWrapper.createEl("input", {
       type: "text",
       placeholder: "Buscar o escribir moneda...",
     });
     comboInput.addClass("ordermanager-input-std");
     const comboList = comboWrapper.createDiv();
-    comboList.style.display = "none";
-    comboList.style.position = "absolute";
-    comboList.style.top = "100%";
-    comboList.style.left = "0";
-    comboList.style.right = "0";
-    comboList.style.maxHeight = "180px";
-    comboList.style.overflowY = "auto";
-    comboList.style.background = "var(--background-primary)";
-    comboList.style.border = "1px solid var(--background-modifier-border)";
-    comboList.style.borderRadius = "4px";
-    comboList.style.zIndex = "10";
+    comboList.setCssProps({
+      display: "none",
+      position: "absolute",
+      top: "100%",
+      left: "0",
+      right: "0",
+      maxHeight: "180px",
+      overflowY: "auto",
+      background: "var(--background-primary)",
+      border: "1px solid var(--background-modifier-border)",
+      borderRadius: "4px",
+      zIndex: "10",
+    });
 
     const filterCombo = () => {
       comboList.empty();
@@ -233,14 +233,11 @@ export class OrderManagerSettingTab extends PluginSettingTab {
       if (filtered.length === 0) {
         const noRes = comboList.createDiv({ text: "Escribí un código (ej: ARS)" });
         noRes.addClass("ordermanager-text-muted");
-        noRes.style.padding = "8px";
-        noRes.style.fontSize = "0.8em";
+        noRes.setCssProps({padding: "8px", fontSize: "0.8em"});
       } else {
         for (const s of filtered) {
           const item = comboList.createDiv();
-          item.style.padding = "6px 10px";
-          item.style.cursor = "pointer";
-          item.style.fontSize = "0.85em";
+          item.setCssProps({padding: "6px 10px", cursor: "pointer", fontSize: "0.85em"});
           item.createSpan({ text: s.label });
           item.onmousedown = (e: MouseEvent) => {
             e.preventDefault();
@@ -249,17 +246,14 @@ export class OrderManagerSettingTab extends PluginSettingTab {
               void this.plugin.saveSettings();
               buildTagPanel();
             }
-            comboInput.value = "";
-            comboList.style.display = "none";
+          comboInput.value = "";
+            comboList.setCssProps({display: "none"});
           };
         }
       }
       if (q.length >= 2) {
         const customItem = comboList.createDiv();
-        customItem.style.padding = "6px 10px";
-        customItem.style.cursor = "pointer";
-        customItem.style.fontSize = "0.85em";
-        customItem.style.borderTop = "1px solid var(--background-modifier-border)";
+        customItem.setCssProps({padding: "6px 10px", cursor: "pointer", fontSize: "0.85em", borderTop: "1px solid var(--background-modifier-border)"});
         customItem.createSpan({ text: `Agregar "${q.toUpperCase()}" (personalizada)` });
         customItem.onmousedown = (e: MouseEvent) => {
           e.preventDefault();
@@ -270,16 +264,16 @@ export class OrderManagerSettingTab extends PluginSettingTab {
             buildTagPanel();
           }
           comboInput.value = "";
-          comboList.style.display = "none";
+          comboList.setCssProps({display: "none"});
         };
       }
-      comboList.style.display = filtered.length > 0 || q.length >= 2 ? "block" : "none";
+      comboList.setCssProps({display: filtered.length > 0 || q.length >= 2 ? "block" : "none"});
     };
 
     comboInput.onfocus = () => filterCombo();
     comboInput.oninput = () => filterCombo();
     comboInput.onblur = () => {
-      window.setTimeout(() => { comboList.style.display = "none"; }, 150);
+      window.setTimeout(() => { comboList.setCssProps({display: "none"}); }, 150);
     };
 
     const fetchBtn = addRow.createEl("button", { text: "Actualizar tasas" });
@@ -339,7 +333,7 @@ export class OrderManagerSettingTab extends PluginSettingTab {
       if (existingWrapper) existingWrapper.remove();
 
       const booksWrapper = containerEl.createDiv({ cls: "ordermanager-books-list" });
-      booksWrapper.style.marginBottom = "12px";
+      booksWrapper.setCssProps({marginBottom: "12px"});
 
       if (this.plugin.settings.libros.length === 0) {
         booksWrapper.createEl("p", {
@@ -352,8 +346,7 @@ export class OrderManagerSettingTab extends PluginSettingTab {
           row.addClass("ordermanager-book-row");
 
           const nameSpan = row.createEl("span", { text: libro });
-          nameSpan.style.flex = "1";
-          nameSpan.style.fontWeight = "500";
+          nameSpan.setCssProps({flex: "1", fontWeight: "500"});
 
           if (libro === this.plugin.settings.libroActivo) {
             const badge = row.createEl("span", { text: "✓ Activo" });
@@ -373,8 +366,8 @@ export class OrderManagerSettingTab extends PluginSettingTab {
           const renameBtn = row.createEl("button", { text: "✎" });
           renameBtn.addClass("ordermanager-btn-rename");
           renameBtn.onclick = () => {
-            nameSpan.style.display = "none";
-            renameBtn.style.display = "none";
+            nameSpan.setCssProps({display: "none"});
+            renameBtn.setCssProps({display: "none"});
             const editRow = row.createDiv();
             editRow.addClass("ordermanager-flex-row");
             const editInput = editRow.createEl("input", { type: "text", value: libro });
@@ -435,7 +428,7 @@ export class OrderManagerSettingTab extends PluginSettingTab {
     void renderBooks();
 
     const createRow = containerEl.createDiv();
-    createRow.style.marginBottom = "12px";
+    createRow.setCssProps({marginBottom: "12px"});
     createRow.addClass("ordermanager-flex-row");
     const nameInput = createRow.createEl("input", {
       type: "text",
@@ -480,7 +473,7 @@ export class OrderManagerSettingTab extends PluginSettingTab {
     );
 
     const gen = ++this.displayGen;
-    (async () => {
+    void (async () => {
       const cats = await this.plugin.dataManager.getCategorias();
       if (gen !== this.displayGen) return;
 

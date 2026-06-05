@@ -35,8 +35,7 @@ export class TicketModal extends Modal {
     const ticket = contentEl.createDiv({ cls: "ordermanager-ticket" });
 
     const header = ticket.createDiv();
-    header.style.textAlign = "center";
-    header.style.marginBottom = "12px";
+    header.setCssProps({textAlign: "center", marginBottom: "12px"});
     header.createEl("h2", { text: "OrderManager" });
     header.createEl("p", {
       text: t("ticketTitle"),
@@ -44,18 +43,14 @@ export class TicketModal extends Modal {
     });
     const h2El = header.querySelector("h2") as HTMLElement;
     if (h2El) {
-      h2El.style.margin = "0";
-      h2El.style.fontSize = "1.2em";
+      h2El.setCssProps({margin: "0", fontSize: "1.2em"});
     }
 
     const divider1 = ticket.createEl("hr");
-    divider1.style.border = "none";
-    divider1.style.borderTop = "1px dashed var(--background-modifier-border)";
-    divider1.style.margin = "8px 0";
+    divider1.setCssProps({border: "none", borderTop: "1px dashed var(--background-modifier-border)", margin: "8px 0"});
 
     const fields = ticket.createDiv();
-    fields.style.fontSize = "0.9em";
-    fields.style.lineHeight = "1.8";
+    fields.setCssProps({fontSize: "0.9em", lineHeight: "1.8"});
 
     this.addField(fields, t("date"), formatDate(d.fecha));
     this.addField(fields, t("clientDebtor"), d.cliente || c?.nombre || "\u2014");
@@ -66,7 +61,7 @@ export class TicketModal extends Modal {
         : [];
     if (productos.length > 0) {
       const prodHeader = fields.createDiv();
-      prodHeader.style.marginTop = "4px";
+      prodHeader.setCssProps({marginTop: "4px"});
       prodHeader.createSpan({
         text: t("products"),
         cls: "ordermanager-text-muted",
@@ -74,7 +69,7 @@ export class TicketModal extends Modal {
       const prodLabel = prodHeader.querySelector(".ordermanager-text-muted") as HTMLElement;
       if (prodLabel) {
         prodLabel.addClass("ordermanager-text-muted");
-        prodLabel.style.fontSize = "0.85em";
+        prodLabel.setCssProps({fontSize: "0.85em"});
       }
       for (const p of productos) {
         this.addField(fields, `  ${p.nombre}`, `${p.cantidad} × ${formatCurrency(p.precio_unitario, d.moneda)}`);
@@ -83,11 +78,7 @@ export class TicketModal extends Modal {
     this.addField(fields, t("description"), d.descripcion || "\u2014");
 
     const amountRow = fields.createDiv();
-    amountRow.style.display = "flex";
-    amountRow.style.justifyContent = "space-between";
-    amountRow.style.fontWeight = "bold";
-    amountRow.style.fontSize = "1.1em";
-    amountRow.style.margin = "8px 0";
+    amountRow.setCssProps({display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "1.1em", margin: "8px 0"});
     amountRow.createSpan({ text: t("amount") });
     amountRow.createSpan({ text: formatCurrency(d.monto || 0, d.moneda) });
 
@@ -95,22 +86,15 @@ export class TicketModal extends Modal {
 
     if (d.clase === "egreso") {
       const creditRow = fields.createDiv();
-      creditRow.style.textAlign = "center";
-      creditRow.style.color = "var(--color-red)";
-      creditRow.style.fontWeight = "bold";
-      creditRow.style.margin = "8px 0";
+      creditRow.setCssProps({textAlign: "center", color: "var(--color-red)", fontWeight: "bold", margin: "8px 0"});
       creditRow.createSpan({ text: t("creditPurchase") });
     }
 
     const divider2 = ticket.createEl("hr");
-    divider2.style.border = "none";
-    divider2.style.borderTop = "1px dashed var(--background-modifier-border)";
-    divider2.style.margin = "8px 0";
+    divider2.setCssProps({border: "none", borderTop: "1px dashed var(--background-modifier-border)", margin: "8px 0"});
 
     const footer = ticket.createDiv();
-    footer.style.textAlign = "center";
-    footer.style.color = "var(--text-muted)";
-    footer.style.fontSize = "0.85em";
+    footer.setCssProps({textAlign: "center", color: "var(--text-muted)", fontSize: "0.85em"});
     footer.createEl("p", { text: t("thankYou") });
 
     const actions = contentEl.createDiv({ cls: "ordermanager-form-actions" });
@@ -129,8 +113,7 @@ export class TicketModal extends Modal {
 
   private addField(container: HTMLElement, label: string, value: string) {
     const row = container.createDiv();
-    row.style.display = "flex";
-    row.style.justifyContent = "space-between";
+    row.setCssProps({display: "flex", justifyContent: "space-between"});
     row.createSpan({ text: label, cls: "ordermanager-text-muted" });
     row.createSpan({ text: value });
 

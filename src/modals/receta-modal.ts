@@ -38,11 +38,7 @@ export class RecetaModal extends Modal {
     contentEl.createEl("h3", { text: `Estructura de Costo \u2014 ${this.producto.nombre}` });
 
     const calcRow = contentEl.createDiv();
-    calcRow.style.display = "flex";
-    calcRow.style.gap = "16px";
-    calcRow.style.marginBottom = "12px";
-    calcRow.style.alignItems = "center";
-    calcRow.style.flexWrap = "wrap";
+    calcRow.setCssProps({display: "flex", gap: "16px", marginBottom: "12px", alignItems: "center", flexWrap: "wrap"});
 
     const updateSubtotals = () => {
       this.receta.forEach((item, i) => {
@@ -60,19 +56,15 @@ export class RecetaModal extends Modal {
       const costoUnitario = costoTotal / (this.porcion || 1);
       const ventaUnitario = (costoConMargen * (1 + (this.margen || 0) / 100) + costoSinMargen) / (this.porcion || 1);
 
-      calcRow.createEl("span", { text: `Costo total: ${formatCurrency(costoTotal, this.producto.moneda)}` }).style.fontWeight = "600";
-      calcRow.createEl("span", { text: `Costo/ud: ${formatCurrency(costoUnitario, this.producto.moneda)}` }).style.fontWeight = "600";
+      calcRow.createEl("span", { text: `Costo total: ${formatCurrency(costoTotal, this.producto.moneda)}` }).setCssProps({fontWeight: "600"});
+      calcRow.createEl("span", { text: `Costo/ud: ${formatCurrency(costoUnitario, this.producto.moneda)}` }).setCssProps({fontWeight: "600"});
       const ventaSpan = calcRow.createEl("span", { text: `Precio venta/ud: ${formatCurrency(ventaUnitario, this.producto.moneda)}` });
-      ventaSpan.style.fontWeight = "700";
-      ventaSpan.style.color = "var(--color-green)";
+      ventaSpan.setCssProps({fontWeight: "700", color: "var(--color-green)"});
       updateSubtotals();
     };
 
     const margenRow = contentEl.createDiv();
-    margenRow.style.display = "flex";
-    margenRow.style.gap = "8px";
-    margenRow.style.marginBottom = "12px";
-    margenRow.style.alignItems = "center";
+    margenRow.setCssProps({display: "flex", gap: "8px", marginBottom: "12px", alignItems: "center"});
     new Setting(margenRow.createDiv()).setName("Margen (%)").addText((t) => {
       t.inputEl.type = "number";
       t.setValue(String(this.margen));
@@ -104,14 +96,14 @@ export class RecetaModal extends Modal {
         const nameTd = row.createEl("td");
         const nameInput = nameTd.createEl("input", { type: "text" });
         nameInput.addClass("ordermanager-table-input");
-        nameInput.style.width = "100px";
+        nameInput.setCssProps({width: "100px"});
         nameInput.value = item.nombre;
         nameInput.oninput = () => { item.nombre = nameInput.value; };
 
         const cantTd = row.createEl("td");
         const cantInput = cantTd.createEl("input", { type: "number" });
         cantInput.addClass("ordermanager-table-input");
-        cantInput.style.width = "70px";
+        cantInput.setCssProps({width: "70px"});
         cantInput.step = "0.01";
         cantInput.value = String(item.cantidad);
         cantInput.oninput = () => { item.cantidad = parseFloat(cantInput.value) || 0; updateDisplay(); };
@@ -119,14 +111,14 @@ export class RecetaModal extends Modal {
         const unidadTd = row.createEl("td");
         const unidadInput = unidadTd.createEl("input", { type: "text" });
         unidadInput.addClass("ordermanager-table-input");
-        unidadInput.style.width = "50px";
+        unidadInput.setCssProps({width: "50px"});
         unidadInput.value = item.unidad;
         unidadInput.oninput = () => { item.unidad = unidadInput.value; };
 
         const costoTd = row.createEl("td");
         const costoInput = costoTd.createEl("input", { type: "number" });
         costoInput.addClass("ordermanager-table-input");
-        costoInput.style.width = "80px";
+        costoInput.setCssProps({width: "80px"});
         costoInput.step = "0.0001";
         costoInput.value = String(item.costo_unitario);
         costoInput.oninput = () => { item.costo_unitario = parseFloat(costoInput.value) || 0; updateDisplay(); };
@@ -136,8 +128,8 @@ export class RecetaModal extends Modal {
 
         const margenTd = row.createEl("td");
         const margenCheck = margenTd.createEl("input", { type: "checkbox" }) as HTMLInputElement;
-        margenCheck.checked = item.aplicar_margen !== false;
-        margenCheck.style.cursor = "pointer";
+        margenCheck.checked = item.aplicar_margen ?? true;
+        margenCheck.setCssProps({cursor: "pointer"});
         margenCheck.onchange = () => { item.aplicar_margen = margenCheck.checked; updateDisplay(); };
 
         const delTd = row.createEl("td");
@@ -150,7 +142,7 @@ export class RecetaModal extends Modal {
     renderTable();
 
     const addRow = contentEl.createDiv();
-    addRow.style.marginTop = "8px";
+    addRow.setCssProps({marginTop: "8px"});
     const addBtn = addRow.createEl("button", { text: "+ Agregar insumo" });
     addBtn.addClass("ordermanager-btn-accent");
     addBtn.onclick = () => {

@@ -71,7 +71,7 @@ export function downloadCSV(content: string, filename: string): void {
   const link = activeDocument.createElement("a");
   link.setAttribute("href", url);
   link.setAttribute("download", filename);
-  link.style.display = "none";
+  link.setCssProps({display: "none"});
   activeDocument.body.appendChild(link);
   link.click();
   activeDocument.body.removeChild(link);

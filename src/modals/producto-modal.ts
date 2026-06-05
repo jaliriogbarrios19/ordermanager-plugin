@@ -131,7 +131,7 @@ export class ProductoModal extends Modal {
 
     if (this.existingFile) {
       const recetaBtn = form.createDiv();
-      recetaBtn.style.marginBottom = "12px";
+      recetaBtn.setCssProps({marginBottom: "12px"});
       recetaBtn.createEl("button", { text: "📐 Estructura de costo", cls: "" }).onclick = () => {
         new RecetaModal(this.app, this.plugin, this.existingFile ? {
           ...this.data as ProductoData,

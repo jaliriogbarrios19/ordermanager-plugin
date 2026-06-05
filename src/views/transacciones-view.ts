@@ -97,12 +97,12 @@ export class TransaccionesView extends ItemView {
       type: "number",
       placeholder: i18n("minAmount"),
     });
-    amountMin.style.width = "80px";
+    amountMin.setCssProps({width: "80px"});
     const amountMax = toolbar.createEl("input", {
       type: "number",
       placeholder: i18n("maxAmount"),
     });
-    amountMax.style.width = "80px";
+    amountMax.setCssProps({width: "80px"});
 
     let currentFiltered: typeof sorted = sorted;
 
@@ -182,13 +182,15 @@ export class TransaccionesView extends ItemView {
 
         const ticketTd = row.createEl("td");
         const ticketBtn = ticketTd.createEl("button", { text: "🎫" });
-        ticketBtn.style.padding = "2px 6px";
-        ticketBtn.style.border = "none";
-        ticketBtn.style.borderRadius = "4px";
-        ticketBtn.style.background = "var(--background-secondary)";
-        ticketBtn.style.cursor = "pointer";
-        ticketBtn.style.fontSize = "1em";
-        ticketBtn.style.lineHeight = "1";
+        ticketBtn.setCssProps({
+          padding: "2px 6px",
+          border: "none",
+          borderRadius: "4px",
+          background: "var(--background-secondary)",
+          cursor: "pointer",
+          fontSize: "1em",
+          lineHeight: "1",
+        });
         ticketBtn.setAttr("title", i18n("generateTicket"));
         ticketBtn.onclick = async (e: MouseEvent) => {
           e.stopPropagation();

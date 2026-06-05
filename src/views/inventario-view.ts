@@ -131,8 +131,7 @@ export class InventarioView extends ItemView {
         const stockMin = d.stock_minimo ?? 0;
         const stockEl = row.createEl("td");
         if (stockMin > 0 && stockVal <= stockMin) {
-          stockEl.style.color = "var(--color-red)";
-          stockEl.style.fontWeight = "700";
+          stockEl.setCssProps({color: "var(--color-red)", fontWeight: "700"});
           stockEl.setText(`${stockVal} ⚠`);
         } else {
           stockEl.setText(String(stockVal));

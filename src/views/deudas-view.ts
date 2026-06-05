@@ -109,34 +109,33 @@ export class DeudasView extends ItemView {
 
     if (deudoresMap.size > 0 || acreedoresMap.size > 0) {
       const summaryDiv = container.createDiv();
-      summaryDiv.style.display = "flex";
-      summaryDiv.style.gap = "16px";
-      summaryDiv.style.marginBottom = "16px";
-      summaryDiv.style.flexWrap = "wrap";
+      summaryDiv.setCssProps({display: "flex", gap: "16px", marginBottom: "16px", flexWrap: "wrap"});
 
       if (deudoresMap.size > 0) {
         const card = summaryDiv.createDiv();
-        card.style.flex = "1";
-        card.style.minWidth = "280px";
-        card.style.border = "1px solid var(--background-modifier-border)";
-        card.style.borderRadius = "8px";
-        card.style.padding = "12px";
-        card.style.background = "var(--background-secondary)";
+        card.setCssProps({
+          flex: "1",
+          minWidth: "280px",
+          border: "1px solid var(--background-modifier-border)",
+          borderRadius: "8px",
+          padding: "12px",
+          background: "var(--background-secondary)",
+        });
         card.createEl("h4", {
           text: "Quiénes me deben",
           cls: "",
         });
-        (card.querySelector("h4") as HTMLElement).style.margin = "0 0 8px 0";
-        (card.querySelector("h4") as HTMLElement).style.color = "var(--color-green)";
-        (card.querySelector("h4") as HTMLElement).style.fontSize = "0.9em";
+        (card.querySelector("h4") as HTMLElement).setCssProps({margin: "0 0 8px 0", color: "var(--color-green)", fontSize: "0.9em"});
         const sortedDeudores = [...deudoresMap.entries()].sort((a, b) => b[1] - a[1]);
         for (const [nombre, monto] of sortedDeudores) {
           const row = card.createDiv();
-          row.style.display = "flex";
-          row.style.justifyContent = "space-between";
-          row.style.padding = "4px 0";
-          row.style.borderBottom = "1px solid var(--background-modifier-border)";
-          row.style.fontSize = "0.85em";
+          row.setCssProps({
+            display: "flex",
+            justifyContent: "space-between",
+            padding: "4px 0",
+            borderBottom: "1px solid var(--background-modifier-border)",
+            fontSize: "0.85em",
+          });
           row.createSpan({ text: nombre });
           row.createSpan({ text: formatCurrency(monto, this.plugin.settings.defaultCurrency) });
         }
@@ -144,27 +143,29 @@ export class DeudasView extends ItemView {
 
       if (acreedoresMap.size > 0) {
         const card = summaryDiv.createDiv();
-        card.style.flex = "1";
-        card.style.minWidth = "280px";
-        card.style.border = "1px solid var(--background-modifier-border)";
-        card.style.borderRadius = "8px";
-        card.style.padding = "12px";
-        card.style.background = "var(--background-secondary)";
+        card.setCssProps({
+          flex: "1",
+          minWidth: "280px",
+          border: "1px solid var(--background-modifier-border)",
+          borderRadius: "8px",
+          padding: "12px",
+          background: "var(--background-secondary)",
+        });
         card.createEl("h4", {
           text: "A quiénes les debo",
           cls: "",
         });
-        (card.querySelector("h4") as HTMLElement).style.margin = "0 0 8px 0";
-        (card.querySelector("h4") as HTMLElement).style.color = "var(--color-red)";
-        (card.querySelector("h4") as HTMLElement).style.fontSize = "0.9em";
+        (card.querySelector("h4") as HTMLElement).setCssProps({margin: "0 0 8px 0", color: "var(--color-red)", fontSize: "0.9em"});
         const sortedAcreedores = [...acreedoresMap.entries()].sort((a, b) => b[1] - a[1]);
         for (const [nombre, monto] of sortedAcreedores) {
           const row = card.createDiv();
-          row.style.display = "flex";
-          row.style.justifyContent = "space-between";
-          row.style.padding = "4px 0";
-          row.style.borderBottom = "1px solid var(--background-modifier-border)";
-          row.style.fontSize = "0.85em";
+          row.setCssProps({
+            display: "flex",
+            justifyContent: "space-between",
+            padding: "4px 0",
+            borderBottom: "1px solid var(--background-modifier-border)",
+            fontSize: "0.85em",
+          });
           row.createSpan({ text: nombre });
           row.createSpan({ text: formatCurrency(monto, this.plugin.settings.defaultCurrency) });
         }
@@ -263,19 +264,21 @@ export class DeudasView extends ItemView {
 
         const actionTd = row.createEl("td");
         actionTd.addClass("ordermanager-flex-row");
-        actionTd.style.gap = "4px";
+        actionTd.setCssProps({gap: "4px"});
 
         if (data.estado !== "pagada" && !esProducto) {
           const payBtn = actionTd.createEl("button", { text: "$" });
           payBtn.title = "Registrar pago";
-          payBtn.style.padding = "2px 6px";
-          payBtn.style.border = "none";
-          payBtn.style.borderRadius = "4px";
-          payBtn.style.background = "var(--color-green)";
-          payBtn.style.color = "#fff";
-          payBtn.style.cursor = "pointer";
-          payBtn.style.fontSize = "0.85em";
-          payBtn.style.lineHeight = "1";
+          payBtn.setCssProps({
+            padding: "2px 6px",
+            border: "none",
+            borderRadius: "4px",
+            background: "var(--color-green)",
+            color: "#fff",
+            cursor: "pointer",
+            fontSize: "0.85em",
+            lineHeight: "1",
+          });
           payBtn.onclick = (e: MouseEvent) => {
             e.stopPropagation();
             const restante = (data.monto_total || 0) - (data.monto_pagado || 0);
