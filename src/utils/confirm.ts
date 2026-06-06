@@ -6,7 +6,6 @@ class ConfirmModal extends Modal {
   constructor(app: App, message: string) {
     super(app);
     this.resolve = (_value: boolean) => {};
-    this.onResolve = this.onResolve.bind(this);
     this.setMessage(message);
   }
 

@@ -94,11 +94,6 @@ export class DashboardView extends ItemView {
       dm.getProductos(),
     ]);
 
-    const valorInventario = productos.reduce(
-      (sum, p) => sum + (p.data.precio_costo || 0) * (p.data.stock || 0),
-      0
-    );
-
     const libroActivo = this.plugin.settings.libroActivo;
 
     container.createEl("h2", { text: `${i18n("dashboard")} — ${libroActivo}` });

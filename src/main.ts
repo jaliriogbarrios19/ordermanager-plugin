@@ -186,7 +186,7 @@ export default class OrderManagerPlugin extends Plugin {
       }
     }
 
-    if (leaf) void workspace.revealLeaf(leaf);
+    if (leaf) workspace.setActiveLeaf(leaf, false, true);
   }
 
   getExistingView(viewType: string) {
@@ -198,12 +198,11 @@ export default class OrderManagerPlugin extends Plugin {
   }
 
   async loadSettings() {
-    const data = await this.loadData();
+    const data = (await this.loadData() ?? {}) as Record<string, unknown>;
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
-    const legacy = data as Record<string, unknown> | undefined;
-    if (legacy?.negocios && Array.isArray(legacy.negocios) && !this.settings.libros.length) {
-      this.settings.libros = legacy.negocios as string[];
-      this.settings.libroActivo = (legacy.negocioActivo as string) || this.settings.libros[0];
+    if (Array.isArray(data.negocios) && !this.settings.libros.length) {
+      this.settings.libros = data.negocios as string[];
+      this.settings.libroActivo = (data.negocioActivo as string) || this.settings.libros[0];
       await this.saveSettings();
     }
   }

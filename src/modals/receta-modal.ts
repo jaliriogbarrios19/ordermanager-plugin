@@ -127,7 +127,7 @@ export class RecetaModal extends Modal {
         this.subtotalCells.push(subtotalTd);
 
         const margenTd = row.createEl("td");
-        const margenCheck = margenTd.createEl("input", { type: "checkbox" }) as HTMLInputElement;
+        const margenCheck = margenTd.createEl("input", { type: "checkbox" });
         margenCheck.checked = item.aplicar_margen ?? true;
         margenCheck.setCssProps({cursor: "pointer"});
         margenCheck.onchange = () => { item.aplicar_margen = margenCheck.checked; updateDisplay(); };

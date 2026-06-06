@@ -17,6 +17,10 @@ export class OrderManagerSettingTab extends PluginSettingTab {
   }
 
   display(): void {
+    this.render();
+  }
+
+  private render(): void {
     const { containerEl } = this;
     containerEl.empty();
 
@@ -81,7 +85,7 @@ export class OrderManagerSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
             this.plugin.dataManager.updateSettings(this.plugin.settings);
             new Notice(`${discovered.length} libro(s) detectado(s) en "${actualBasePath}".`);
-            this.display();
+            this.render();
           } else {
             new Notice(`No se encontraron datos en "${actualBasePath}".`);
           }
@@ -411,7 +415,7 @@ export class OrderManagerSettingTab extends PluginSettingTab {
             const bookPath = normalizePath(`${this.plugin.settings.baseFolder}/${libro}`);
             const bookFolder = this.plugin.app.vault.getAbstractFileByPath(bookPath);
             if (bookFolder instanceof TFolder) {
-              try { await this.plugin.app.fileManager.trashFile(bookFolder); } catch { /* */ }
+              try { await this.plugin.app.vault.trash(bookFolder, true); } catch { /* */ }
             }
             this.plugin.settings.libros = this.plugin.settings.libros.filter((l) => l !== libro);
             if (this.plugin.settings.libroActivo === libro) {

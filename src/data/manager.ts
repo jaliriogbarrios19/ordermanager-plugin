@@ -5,8 +5,10 @@ import type {
   ClienteData,
   ProveedorData,
   TransaccionData,
+  ProductoEnTransaccion,
   DeudaData,
   ProductoData,
+  InsumoReceta,
   CategoriasData,
   OrderManagerSettings,
 } from "../types";
@@ -227,7 +229,7 @@ export class DataManager {
     if (!comprobantePath) return;
     const file = this.vault.getAbstractFileByPath(comprobantePath);
     if (file instanceof TFile) {
-      await this.app.fileManager.trashFile(file);
+      await this.app.vault.trash(file, true);
     }
   }
 
@@ -240,7 +242,7 @@ export class DataManager {
     } catch {
       /* no comprobante or unreadable */
     }
-    await this.app.fileManager.trashFile(file);
+    await this.app.vault.trash(file, true);
   }
 
   private async readFrontmatter(file: TFile): Promise<Record<string, unknown>> {
@@ -315,7 +317,7 @@ export class DataManager {
   }
 
   async deleteFile(file: TFile): Promise<void> {
-    await this.app.fileManager.trashFile(file);
+    await this.app.vault.trash(file, true);
   }
 
   // ============= CLIENTES =============
@@ -405,7 +407,7 @@ export class DataManager {
         if (parsed.frontmatter.tipo === "transaccion") {
           const data = parsed.frontmatter as unknown as TransaccionData;
           if (typeof data.productos === "string") {
-            try { data.productos = JSON.parse(data.productos as string); } catch { data.productos = []; }
+            try { data.productos = JSON.parse(data.productos as string) as ProductoEnTransaccion[]; } catch { data.productos = []; }
           }
           if (!data.productos) data.productos = [];
           results.push({ file, data });
@@ -560,7 +562,7 @@ export class DataManager {
       .map((r) => {
         const data = r.data as unknown as ProductoData;
         if (typeof data.receta === "string") {
-          try { data.receta = JSON.parse(data.receta as string); } catch { data.receta = []; }
+          try { data.receta = JSON.parse(data.receta as string) as InsumoReceta[]; } catch { data.receta = []; }
         }
         if (!data.receta) data.receta = [];
         return { file: r.file, data };
@@ -616,7 +618,7 @@ export class DataManager {
           const parseArr = (field: unknown): string[] => {
             if (Array.isArray(field)) return field as string[];
             if (typeof field === "string") {
-              try { const parsed = JSON.parse(field); if (Array.isArray(parsed)) return parsed as string[]; } catch { /* */ }
+              try { const parsed: unknown = JSON.parse(field); if (Array.isArray(parsed)) return parsed as string[]; } catch { /* */ }
               if (field.includes(",")) return field.split(",");
             }
             return [];
