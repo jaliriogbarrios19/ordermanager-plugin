@@ -179,8 +179,8 @@ export default class OrderManagerPlugin extends Plugin {
 
     if (leaves.length > 0) {
       leaf = leaves[0];
-    } else if (Platform.isMobile) {
-      leaf = workspace.getLeaf(true);
+    } else if (Platform.isMobileApp) {
+      leaf = workspace.getLeaf("tab");
       await leaf.setViewState({ type: viewType, active: true });
     } else {
       leaf = workspace.getRightLeaf(false);
