@@ -180,7 +180,11 @@ export default class OrderManagerPlugin extends Plugin {
     if (leaves.length > 0) {
       leaf = leaves[0];
     } else {
-      leaf = workspace.getLeaf(true);
+      leaf = workspace.getLeaf(true) ?? workspace.getLeaf(false);
+      if (!leaf) {
+        new Notice("Error: no se pudo crear hoja en mobile");
+        return;
+      }
       await leaf.setViewState({ type: viewType, active: true });
     }
 
