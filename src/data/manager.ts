@@ -229,7 +229,7 @@ export class DataManager {
     if (!comprobantePath) return;
     const file = this.vault.getAbstractFileByPath(comprobantePath);
     if (file instanceof TFile) {
-      await this.app.vault.trash(file, true);
+      await this.app.fileManager.trashFile(file);
     }
   }
 
@@ -242,7 +242,7 @@ export class DataManager {
     } catch {
       /* no comprobante or unreadable */
     }
-    await this.app.vault.trash(file, true);
+    await this.app.fileManager.trashFile(file);
   }
 
   private async readFrontmatter(file: TFile): Promise<Record<string, unknown>> {
@@ -317,7 +317,7 @@ export class DataManager {
   }
 
   async deleteFile(file: TFile): Promise<void> {
-    await this.app.vault.trash(file, true);
+    await this.app.fileManager.trashFile(file);
   }
 
   // ============= CLIENTES =============

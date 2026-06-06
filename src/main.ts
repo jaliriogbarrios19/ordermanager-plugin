@@ -186,7 +186,7 @@ export default class OrderManagerPlugin extends Plugin {
       }
     }
 
-    if (leaf) workspace.setActiveLeaf(leaf, false, true);
+    if (leaf) workspace.setActiveLeaf(leaf, { focus: true });
   }
 
   getExistingView(viewType: string) {

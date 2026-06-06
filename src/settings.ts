@@ -415,7 +415,7 @@ export class OrderManagerSettingTab extends PluginSettingTab {
             const bookPath = normalizePath(`${this.plugin.settings.baseFolder}/${libro}`);
             const bookFolder = this.plugin.app.vault.getAbstractFileByPath(bookPath);
             if (bookFolder instanceof TFolder) {
-              try { await this.plugin.app.vault.trash(bookFolder, true); } catch { /* */ }
+              try { await this.plugin.app.fileManager.trashFile(bookFolder); } catch { /* */ }
             }
             this.plugin.settings.libros = this.plugin.settings.libros.filter((l) => l !== libro);
             if (this.plugin.settings.libroActivo === libro) {
