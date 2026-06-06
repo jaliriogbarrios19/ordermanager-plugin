@@ -65,9 +65,16 @@ export default class OrderManagerPlugin extends Plugin {
       this.registerView(VIEW_TYPE_INVENTARIO, (leaf) => new InventarioView(leaf, this));
       this.registerView(VIEW_TYPE_DEUDAS, (leaf) => new DeudasView(leaf, this));
 
-      this.addRibbonIcon("landmark", "OrderManager", () => {
+      this.addRibbonIcon("landmark", "OrderManager", (evt: MouseEvent) => {
+        evt.preventDefault();
         void this.activateView(VIEW_TYPE_DASHBOARD);
       });
+
+      const statusBarItem = this.addStatusBarItem();
+      statusBarItem.setText("📊 OM");
+      statusBarItem.addClass("ordermanager-status-bar");
+      statusBarItem.setAttr("aria-label", "Abrir OrderManager");
+      statusBarItem.onClickEvent(() => { void this.activateView(VIEW_TYPE_DASHBOARD); });
 
     this.addCommand({
       id: "open-dashboard",
