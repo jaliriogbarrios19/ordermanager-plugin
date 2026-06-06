@@ -1,4 +1,4 @@
-import { Plugin, WorkspaceLeaf, FuzzySuggestModal, TFile, Modal, Notice, App, Platform } from "obsidian";
+import { Plugin, WorkspaceLeaf, FuzzySuggestModal, TFile, Modal, Notice, App } from "obsidian";
 
 import { OrderManagerSettingTab } from "./settings";
 import { DataManager } from "./data/manager";
@@ -179,14 +179,9 @@ export default class OrderManagerPlugin extends Plugin {
 
     if (leaves.length > 0) {
       leaf = leaves[0];
-    } else if (Platform.isMobileApp) {
-      leaf = workspace.getLeaf("tab");
-      await leaf.setViewState({ type: viewType, active: true });
     } else {
-      leaf = workspace.getRightLeaf(false);
-      if (leaf) {
-        await leaf.setViewState({ type: viewType, active: true });
-      }
+      leaf = workspace.getLeaf(true);
+      await leaf.setViewState({ type: viewType, active: true });
     }
 
     if (leaf) workspace.setActiveLeaf(leaf, { focus: true });
