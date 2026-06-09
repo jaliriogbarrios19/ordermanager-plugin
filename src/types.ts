@@ -72,6 +72,7 @@ export interface DeudaData {
   deuda_tipo: DeudaTipo;
   monto_total: number;
   monto_pagado: number;
+  monto_referencia: number;
   moneda: string;
   fecha_inicio: string;
   fecha_vencimiento: string;

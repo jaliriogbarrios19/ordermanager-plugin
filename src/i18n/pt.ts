@@ -46,7 +46,7 @@ export const pt: TranslationDict = {
   noProducts: "Sem produtos",
   noProductsDesc: "Adicione seu primeiro produto usando o botão '+ Novo'.",
   noDebts: "Sem dívidas",
-  noDebtsDesc: "Adicione sua primeira dívida usando o botão '+ Nova'.",
+  noDebtsDesc: "Adicione sua primeira dívida pelo botão '+' no painel principal.",
   save: "Salvar",
   cancel: "Cancelar",
   delete: "Excluir",

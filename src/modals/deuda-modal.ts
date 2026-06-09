@@ -4,6 +4,7 @@ import type { DeudaData, DeudaClase, DeudaEstado, DeudaTipo } from "../types";
 import { today, now } from "../utils/date";
 import { t } from "../i18n";
 import { confirmAction } from "../utils/confirm";
+import { convertir, getRatesForDate } from "../utils/exchange";
 
 export class DeudaModal extends Modal {
   plugin: OrderManagerPlugin;
@@ -283,6 +284,10 @@ export class DeudaModal extends Modal {
           new Notice(t("totalAmountRequired"));
           return;
         }
+      }
+      if (this.data.deuda_tipo !== "producto" && (this.data.monto_total || 0) > 0) {
+        const r = getRatesForDate(this.data.fecha_inicio || today(), this.plugin.settings.tasasHistoricas || {}, this.plugin.settings.tasasCambio || { USD: 1 });
+        this.data.monto_referencia = convertir(this.data.monto_total || 0, this.data.moneda || this.plugin.settings.defaultCurrency, r, this.plugin.settings.tasaReferencia || "USD");
       }
       await this.plugin.dataManager.saveDeuda(this.data, this.existingFile || undefined);
       this.onSubmit();

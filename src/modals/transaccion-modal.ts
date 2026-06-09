@@ -3,7 +3,7 @@ import type OrderManagerPlugin from "../main";
 import type { TransaccionData, TipoOperacion, ModalidadPago, ProductoEnTransaccion, DeudaData } from "../types";
 import { MONEDA_SOURCES } from "../types";
 import { today, now } from "../utils/date";
-import { convertir } from "../utils/exchange";
+import { convertir, getRatesForDate } from "../utils/exchange";
 import { formatCurrency } from "../utils/currency";
 import { t } from "../i18n";
 import { TicketModal } from "./ticket-modal";
@@ -761,6 +761,7 @@ export class TransaccionModal extends Modal {
             estado: montoPagado >= montoTotal ? "pagada" : "pendiente",
             cuotas: this.data.cuotas || 1, cuotas_pagadas: this.data.cuotas_pagadas || 0,
             tasa_interes: this.data.tasa_interes || 0,
+            monto_referencia: convertir(montoTotal, this.data.moneda || "USD", rates, ref),
           };
           const deudaFile = await this.plugin.dataManager.saveDeuda(deudaData);
           if (montoPagado > 0) {
@@ -846,6 +847,7 @@ export class TransaccionModal extends Modal {
           cuotas: this.data.cuotas || 1,
           cuotas_pagadas: this.data.cuotas_pagadas || 0,
           tasa_interes: this.data.tasa_interes || 0,
+          monto_referencia: convertir(montoTotal, this.data.moneda || "USD", rates, ref),
         };
 
         deudaFile = await this.plugin.dataManager.saveDeuda(deudaData);
