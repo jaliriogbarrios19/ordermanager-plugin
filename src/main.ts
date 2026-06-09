@@ -187,15 +187,22 @@ export default class OrderManagerPlugin extends Plugin {
     if (leaves.length > 0) {
       leaf = leaves[0];
     } else {
-      leaf = workspace.getLeaf(true) ?? workspace.getLeaf(false);
+      leaf = workspace.getLeaf("tab") ?? workspace.getLeaf(false);
       if (!leaf) {
-        new Notice("Error: no se pudo crear hoja en mobile");
+        new Notice(t("mobileLeafError"));
         return;
       }
       await leaf.setViewState({ type: viewType, active: true });
     }
 
-    if (leaf) workspace.setActiveLeaf(leaf, { focus: true });
+    if (leaf) {
+      const ws = workspace as unknown as { revealLeaf?: (leaf: WorkspaceLeaf) => void };
+      if (typeof ws.revealLeaf === "function") {
+        ws.revealLeaf(leaf);
+      } else {
+        workspace.setActiveLeaf(leaf, { focus: true });
+      }
+    }
   }
 
   getExistingView(viewType: string) {

@@ -174,4 +174,5 @@ export const en: TranslationDict = {
   deleteBookConfirm: "Delete this book and all its data? This cannot be undone.",
   renameBook: "Rename book",
   selectActive: "Set as active",
+  mobileLeafError: "Error: could not open view on mobile.",
 };

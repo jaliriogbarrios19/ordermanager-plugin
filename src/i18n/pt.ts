@@ -174,4 +174,5 @@ export const pt: TranslationDict = {
   deleteBookConfirm: "Excluir este livro e todos os seus dados? Isso não pode ser desfeito.",
   renameBook: "Renomear livro",
   selectActive: "Selecionar como ativo",
+  mobileLeafError: "Erro: não foi possível abrir a visualização no celular.",
 };

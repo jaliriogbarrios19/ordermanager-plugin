@@ -174,4 +174,5 @@ export const es: TranslationDict = {
   deleteBookConfirm: "¿Eliminar el libro y todos sus datos? Esta acción no se puede deshacer.",
   renameBook: "Renombrar libro",
   selectActive: "Seleccionar como activo",
+  mobileLeafError: "Error: no se pudo abrir la vista en el teléfono.",
 };
