@@ -151,6 +151,7 @@ export interface OrderManagerSettings {
   tasasCambio: Record<string, number>;
   bcvPrice: number;
   fechaTasas: string;
+  tasasHistoricas: Record<string, Record<string, number>>;
   onboardingComplete: boolean;
   categoriasIngreso: string[];
   categoriasEgreso: string[];
@@ -216,6 +217,7 @@ export const DEFAULT_SETTINGS: OrderManagerSettings = {
   tasasCambio: { "USD": 1 },
   bcvPrice: 0,
   fechaTasas: "",
+  tasasHistoricas: {},
   onboardingComplete: false,
   categoriasIngreso: ["Ventas", "Servicios", "Consultoría", "Inversiones", "Cobro de deuda", "Otros ingresos"],
   categoriasEgreso: ["Insumos", "Servicios", "Impuestos", "Salarios", "Alquiler", "Servicios públicos", "Pago de deuda", "Marketing", "Otros egresos"],

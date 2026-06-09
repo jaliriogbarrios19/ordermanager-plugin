@@ -159,3 +159,22 @@ export function rebaseRates(
   }
   return result;
 }
+
+export function getRatesForDate(
+  fecha: string,
+  tasasHistoricas: Record<string, Record<string, number>>,
+  currentRates: Record<string, number>
+): Record<string, number> {
+  if (tasasHistoricas[fecha]) return tasasHistoricas[fecha];
+  const target = new Date(fecha).getTime();
+  if (isNaN(target)) return currentRates;
+  let best: { date: string; diff: number } | null = null;
+  for (const d of Object.keys(tasasHistoricas)) {
+    const diff = Math.abs(new Date(d).getTime() - target);
+    if (diff <= 3 * 86400000 && (!best || diff < best.diff)) {
+      best = { date: d, diff };
+    }
+  }
+  if (best) return tasasHistoricas[best.date];
+  return currentRates;
+}

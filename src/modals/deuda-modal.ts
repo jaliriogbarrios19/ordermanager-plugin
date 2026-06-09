@@ -119,13 +119,22 @@ export class DeudaModal extends Modal {
           });
         });
 
+        const currencyCodes = Object.keys(this.plugin.settings.tasasCambio).filter(
+          (k) => !k.startsWith("_")
+        );
+        const def = this.plugin.settings.defaultCurrency;
+        if (!currencyCodes.includes(def)) currencyCodes.push(def);
         new Setting(detailContainer)
           .setName(t("currency"))
-          .addText((text) =>
-            text
-              .setValue(this.data.moneda || this.plugin.settings.defaultCurrency)
-              .onChange((v) => (this.data.moneda = v))
-          );
+          .addDropdown((dd) => {
+            for (const c of currencyCodes) dd.addOption(c, c);
+            const val =
+              this.data.moneda && currencyCodes.includes(this.data.moneda)
+                ? this.data.moneda
+                : def;
+            dd.setValue(val || currencyCodes[0] || "USD");
+            dd.onChange((v) => (this.data.moneda = v));
+          });
 
         const cuotasRow = detailContainer.createDiv({ cls: "ordermanager-form-row" });
         new Setting(cuotasRow.createDiv()).setName(t("installments")).addText((text) => {

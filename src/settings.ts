@@ -305,6 +305,9 @@ export class OrderManagerSettingTab extends PluginSettingTab {
           }
           if (updated > 0) {
             this.plugin.settings.fechaTasas = new Date().toISOString();
+            const todayKey = new Date().toISOString().split("T")[0];
+            if (!this.plugin.settings.tasasHistoricas) this.plugin.settings.tasasHistoricas = {};
+            this.plugin.settings.tasasHistoricas[todayKey] = { ...this.plugin.settings.tasasCambio };
             await this.plugin.saveSettings();
             buildTagPanel();
             new Notice(`${updated} tasa(s) actualizada(s)`);

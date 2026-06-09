@@ -6,7 +6,7 @@ import { formatDate } from "../utils/date";
 import { VIEW_TYPE_DASHBOARD, DashboardView } from "./dashboard-view";
 import { exportDeudasCSV, downloadCSV } from "../utils/export";
 import { t as i18n } from "../i18n";
-import { convertir } from "../utils/exchange";
+import { convertir, getRatesForDate } from "../utils/exchange";
 import { confirmAction } from "../utils/confirm";
 
 export const VIEW_TYPE_DEUDAS = "ordermanager-deudas";
@@ -296,7 +296,9 @@ export class DeudasView extends ItemView {
                     d.file
                   );
                   const ref = this.plugin.settings.tasaReferencia || "USD";
-                  const rates = this.plugin.settings.tasasCambio || { USD: 1 };
+                  const currentRates = this.plugin.settings.tasasCambio || { USD: 1 };
+                  const histRates = this.plugin.settings.tasasHistoricas || {};
+                  const rates = getRatesForDate(data.fecha_inicio, histRates, currentRates);
                   const esAFavor = data.clase === "a_favor";
                   await this.plugin.dataManager.saveTransaccion({
                     clase: esAFavor ? "ingreso" : "egreso",
