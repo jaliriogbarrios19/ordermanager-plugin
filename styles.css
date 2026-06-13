@@ -19,7 +19,7 @@
   text-align: center;
 }
 
-.ordermanager-kpi-card h3 {
+.ordermanager-kpi-label {
   margin: 0 0 8px 0;
   font-size: 0.85em;
   color: var(--text-muted);

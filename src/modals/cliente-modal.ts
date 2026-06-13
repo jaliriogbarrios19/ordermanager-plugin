@@ -41,9 +41,7 @@ export class ClienteModal extends Modal {
     contentEl.empty();
     contentEl.addClass("ordermanager-modal");
 
-    contentEl.createEl("h3", {
-      text: this.existingFile ? "Editar Cliente" : "Nuevo Cliente",
-    });
+    new Setting(contentEl).setName(this.existingFile ? "Editar Cliente" : "Nuevo Cliente").setHeading();
 
     const form = contentEl.createDiv();
 

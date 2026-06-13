@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, WorkspaceLeaf, Setting } from "obsidian";
 import type OrderManagerPlugin from "../main";
 import { ProductoModal } from "../modals/producto-modal";
 import { formatCurrency } from "../utils/currency";
@@ -37,7 +37,7 @@ export class InventarioView extends ItemView {
     const container = this.contentEl;
     container.empty();
 
-    container.createEl("h2", { text: i18n("inventory") });
+    new Setting(container).setName(i18n("inventory")).setHeading();
     const backBtn = container.createEl("button", { text: i18n("backToDashboard"),
       cls: "ordermanager-toolbar",
     });
@@ -90,7 +90,7 @@ export class InventarioView extends ItemView {
 
       if (filtered.length === 0) {
         const empty = tableWrapper.createDiv({ cls: "ordermanager-empty" });
-        empty.createEl("h3", { text: i18n("noProducts") });
+        new Setting(empty).setName(i18n("noProducts")).setHeading();
         empty.createEl("p", { text: i18n("noProductsDesc") });
         return;
       }

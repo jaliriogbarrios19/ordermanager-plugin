@@ -27,7 +27,7 @@ export class TicketModal extends Modal {
     contentEl.empty();
     contentEl.addClass("ordermanager-modal");
 
-    contentEl.createEl("h3", { text: t("ticketTitle") });
+    new Setting(contentEl).setName(t("ticketTitle")).setHeading();
 
     const d = this.transaccion;
     const c = this.cliente;
@@ -36,7 +36,7 @@ export class TicketModal extends Modal {
 
     const header = ticket.createDiv();
     header.setCssProps({textAlign: "center", marginBottom: "12px"});
-    header.createEl("h2", { text: "OrderManager" });
+    header.createEl("div", { text: "OrderManager", cls: "ordermanager-ticket-brand" });
     header.createEl("p", {
       text: t("ticketTitle"),
       cls: "ordermanager-text-muted",

@@ -41,9 +41,7 @@ export class ProveedorModal extends Modal {
     contentEl.empty();
     contentEl.addClass("ordermanager-modal");
 
-    contentEl.createEl("h3", {
-      text: this.existingFile ? "Editar Proveedor" : "Nuevo Proveedor",
-    });
+    new Setting(contentEl).setName(this.existingFile ? "Editar Proveedor" : "Nuevo Proveedor").setHeading();
 
     const form = contentEl.createDiv();
 

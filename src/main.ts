@@ -1,4 +1,4 @@
-import { Plugin, WorkspaceLeaf, FuzzySuggestModal, TFile, Modal, Notice, App } from "obsidian";
+import { Plugin, WorkspaceLeaf, FuzzySuggestModal, TFile, Modal, Notice, App, Setting } from "obsidian";
 
 import { OrderManagerSettingTab } from "./settings";
 import { DataManager } from "./data/manager";
@@ -283,11 +283,11 @@ class OnboardingModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Bienvenido a OrderManager" });
+    new Setting(contentEl).setName("Bienvenido a OrderManager").setHeading();
     contentEl.createEl("p", { text: "Tu plugin de contabilidad para emprendimientos." });
 
     if (this.plugin.settings.libros.length === 0) {
-      contentEl.createEl("h4", { text: t("createBookDesc") });
+      new Setting(contentEl).setName(t("createBookDesc")).setHeading();
       contentEl.createEl("p", { text: t("createBookCTA"), cls: "setting-item-description" });
 
       const row = contentEl.createDiv();

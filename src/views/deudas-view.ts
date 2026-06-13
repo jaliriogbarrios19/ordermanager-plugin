@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice, Modal, App, Setting } from "obsidian";
+import { ItemView, WorkspaceLeaf, Notice } from "obsidian";
 import type OrderManagerPlugin from "../main";
 import { DeudaModal } from "../modals/deuda-modal";
 import { formatCurrency } from "../utils/currency";
@@ -8,6 +8,8 @@ import { exportDeudasCSV, downloadCSV } from "../utils/export";
 import { t as i18n } from "../i18n";
 import { convertir, getRatesForDate } from "../utils/exchange";
 import { confirmAction } from "../utils/confirm";
+import { PagoDeudaModal } from "../modals/pago-deuda-modal";
+import { renderDebtSummaryCards } from "./debt-summary";
 
 export const VIEW_TYPE_DEUDAS = "ordermanager-deudas";
 
@@ -50,7 +52,7 @@ export class DeudasView extends ItemView {
     const container = this.contentEl;
     container.empty();
 
-    container.createEl("h2", { text: i18n("debts") });
+    new Setting(container).setName(i18n("debts")).setHeading();
     const backBtn = container.createEl("button", { text: i18n("backToDashboard"),
       cls: "ordermanager-toolbar",
     });
@@ -70,10 +72,12 @@ export class DeudasView extends ItemView {
     filterClase.createEl("option", { text: i18n("againstMe"), value: "en_contra" });
 
     const filterEstado = toolbar.createEl("select");
+    filterEstado.createEl("option", { text: i18n("activeDebts"), value: "activas" });
     filterEstado.createEl("option", { text: i18n("allStates"), value: "" });
     filterEstado.createEl("option", { text: i18n("pending"), value: "pendiente" });
     filterEstado.createEl("option", { text: i18n("paid"), value: "pagada" });
     filterEstado.createEl("option", { text: i18n("overdue"), value: "vencida" });
+    filterEstado.value = "activas";
 
     const refreshAll = async () => {
       const dashView = this.plugin.getExistingView(VIEW_TYPE_DASHBOARD);
@@ -95,82 +99,10 @@ export class DeudasView extends ItemView {
         (b.data.fecha_inicio || "").localeCompare(a.data.fecha_inicio || "")
     );
 
-    const deudoresMap = new Map<string, number>();
-    const acreedoresMap = new Map<string, number>();
-    for (const d of deudas) {
-      if (d.data.estado === "pagada") continue;
-      const pendiente = (d.data.monto_total || 0) - (d.data.monto_pagado || 0);
-      if (d.data.clase === "a_favor" && d.data.cliente) {
-        deudoresMap.set(d.data.cliente, (deudoresMap.get(d.data.cliente) || 0) + pendiente);
-      } else if (d.data.clase === "en_contra" && d.data.proveedor) {
-        acreedoresMap.set(d.data.proveedor, (acreedoresMap.get(d.data.proveedor) || 0) + pendiente);
-      }
-    }
-
-    if (deudoresMap.size > 0 || acreedoresMap.size > 0) {
-      const summaryDiv = container.createDiv();
-      summaryDiv.setCssProps({display: "flex", gap: "16px", marginBottom: "16px", flexWrap: "wrap"});
-
-      if (deudoresMap.size > 0) {
-        const card = summaryDiv.createDiv();
-        card.setCssProps({
-          flex: "1",
-          minWidth: "280px",
-          border: "1px solid var(--background-modifier-border)",
-          borderRadius: "8px",
-          padding: "12px",
-          background: "var(--background-secondary)",
-        });
-        card.createEl("h4", {
-          text: "Quiénes me deben",
-          cls: "",
-        });
-        (card.querySelector("h4") as HTMLElement).setCssProps({margin: "0 0 8px 0", color: "var(--color-green)", fontSize: "0.9em"});
-        const sortedDeudores = [...deudoresMap.entries()].sort((a, b) => b[1] - a[1]);
-        for (const [nombre, monto] of sortedDeudores) {
-          const row = card.createDiv();
-          row.setCssProps({
-            display: "flex",
-            justifyContent: "space-between",
-            padding: "4px 0",
-            borderBottom: "1px solid var(--background-modifier-border)",
-            fontSize: "0.85em",
-          });
-          row.createSpan({ text: nombre });
-          row.createSpan({ text: formatCurrency(monto, this.plugin.settings.defaultCurrency) });
-        }
-      }
-
-      if (acreedoresMap.size > 0) {
-        const card = summaryDiv.createDiv();
-        card.setCssProps({
-          flex: "1",
-          minWidth: "280px",
-          border: "1px solid var(--background-modifier-border)",
-          borderRadius: "8px",
-          padding: "12px",
-          background: "var(--background-secondary)",
-        });
-        card.createEl("h4", {
-          text: "A quiénes les debo",
-          cls: "",
-        });
-        (card.querySelector("h4") as HTMLElement).setCssProps({margin: "0 0 8px 0", color: "var(--color-red)", fontSize: "0.9em"});
-        const sortedAcreedores = [...acreedoresMap.entries()].sort((a, b) => b[1] - a[1]);
-        for (const [nombre, monto] of sortedAcreedores) {
-          const row = card.createDiv();
-          row.setCssProps({
-            display: "flex",
-            justifyContent: "space-between",
-            padding: "4px 0",
-            borderBottom: "1px solid var(--background-modifier-border)",
-            fontSize: "0.85em",
-          });
-          row.createSpan({ text: nombre });
-          row.createSpan({ text: formatCurrency(monto, this.plugin.settings.defaultCurrency) });
-        }
-      }
-    }
+    const ref = this.plugin.settings.tasaReferencia || "USD";
+    const rates = this.plugin.settings.tasasCambio || { USD: 1 };
+    const histRates = this.plugin.settings.tasasHistoricas || {};
+    renderDebtSummaryCards(container, deudas, this.plugin.settings.defaultCurrency, ref, rates, histRates);
 
     const tableWrapper = container.createDiv();
     const render = () => {
@@ -188,13 +120,15 @@ export class DeudasView extends ItemView {
             return false;
         }
         if (clase && d.data.clase !== clase) return false;
-        if (estado && d.data.estado !== estado) return false;
+        if (estado === "activas") {
+          if (d.data.estado === "pagada") return false;
+        } else if (estado && d.data.estado !== estado) return false;
         return true;
       });
 
       if (filtered.length === 0) {
         const empty = tableWrapper.createDiv({ cls: "ordermanager-empty" });
-        empty.createEl("h3", { text: i18n("noDebts") });
+        empty.createEl("div", { text: i18n("noDebts"), cls: "ordermanager-empty-title" });
         empty.createEl("p", { text: i18n("noDebtsDesc") });
         return;
       }
@@ -360,63 +294,4 @@ export class DeudasView extends ItemView {
   }
 }
 
-class PagoDeudaModal extends Modal {
-  private onSubmit: (amount: number | null) => void;
-  private restante: number;
-  private moneda: string;
 
-  constructor(
-    app: App,
-    restante: number,
-    moneda: string,
-    onSubmit: (amount: number | null) => void
-  ) {
-    super(app);
-    this.restante = restante;
-    this.moneda = moneda;
-    this.onSubmit = onSubmit;
-  }
-
-  onOpen() {
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.addClass("ordermanager-modal");
-
-    contentEl.createEl("h3", { text: "Registrar pago" });
-    contentEl.createEl("p", {
-      text: `Restante: ${formatCurrency(this.restante, this.moneda)}`,
-    });
-
-    let monto = this.restante;
-
-    new Setting(contentEl)
-      .setName("Monto a abonar")
-      .addText((text) => {
-        text.inputEl.type = "number";
-        text.inputEl.step = "0.01";
-        text.setValue(String(this.restante));
-        text.onChange((v) => (monto = parseFloat(v) || 0));
-        text.inputEl.onkeydown = (e: KeyboardEvent) => {
-          if (e.key === "Enter") {
-            const parsed = parseFloat(text.getValue()) || 0;
-            this.close();
-            this.onSubmit(parsed > 0 ? parsed : null);
-          }
-        };
-      });
-
-    const actions = contentEl.createDiv({ cls: "ordermanager-form-actions" });
-    actions.createEl("button", { text: "Cancelar", cls: "secondary" }).onclick = () => {
-      this.close();
-      this.onSubmit(null);
-    };
-    actions.createEl("button", { text: "Registrar", cls: "primary" }).onclick = () => {
-      this.close();
-      this.onSubmit(monto > 0 ? monto : null);
-    };
-  }
-
-  onClose() {
-    this.contentEl.empty();
-  }
-}

@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, WorkspaceLeaf, Setting } from "obsidian";
 import type OrderManagerPlugin from "../main";
 import { ProveedorModal } from "../modals/proveedor-modal";
 import { VIEW_TYPE_DASHBOARD } from "./dashboard-view";
@@ -36,7 +36,7 @@ export class ProveedoresView extends ItemView {
     const container = this.contentEl;
     container.empty();
 
-    container.createEl("h2", { text: i18n("suppliers") });
+    new Setting(container).setName(i18n("suppliers")).setHeading();
 
     const backBtn = container.createEl("button", {
       text: i18n("backToDashboard"),
@@ -81,7 +81,7 @@ export class ProveedoresView extends ItemView {
 
       if (filtered.length === 0) {
         const empty = tableWrapper.createDiv({ cls: "ordermanager-empty" });
-        empty.createEl("h3", { text: i18n("noSuppliers") });
+        new Setting(empty).setName(i18n("noSuppliers")).setHeading();
         empty.createEl("p", { text: i18n("noSuppliersDesc") });
         return;
       }

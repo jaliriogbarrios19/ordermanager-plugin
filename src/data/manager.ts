@@ -1,5 +1,5 @@
-import { App, TFile, TFolder, normalizePath } from "obsidian";
-import { parseFrontmatterFromContent, buildMarkdownNote, stringifyYaml } from "./parser";
+import { TFile } from "obsidian";
+import { parseFrontmatterFromContent } from "./parser";
 import { clienteTemplate, proveedorTemplate, transaccionTemplate, deudaTemplate, productoTemplate } from "./templates";
 import type {
   ClienteData,
@@ -9,387 +9,41 @@ import type {
   DeudaData,
   ProductoData,
   InsumoReceta,
-  CategoriasData,
-  OrderManagerSettings,
 } from "../types";
-import { DEFAULT_CATEGORIAS } from "../types";
-import { now, today } from "../utils/date";
+import { now } from "../utils/date";
+import { CategoriaManager } from "./categoria-manager";
+import { processRecurring as processRecurringImpl } from "./recurring";
 
-export class DataManager {
-  private app: App;
-  private settings: OrderManagerSettings;
-
-  private get vault(): App["vault"] {
-    return this.app.vault;
-  }
-
-  constructor(app: App, settings: OrderManagerSettings) {
-    this.app = app;
-    this.settings = settings;
-  }
-
-  updateSettings(settings: OrderManagerSettings) {
-    this.settings = settings;
-  }
-
-  private basePath(subfolder: string): string {
-    return normalizePath(`${this.settings.baseFolder}/${this.settings.libroActivo}/${subfolder}`);
-  }
-
-  async ensureFolder(path: string): Promise<TFolder> {
-    const normalized = normalizePath(path);
-    const existing = this.vault.getAbstractFileByPath(normalized);
-    if (existing && existing instanceof TFolder) return existing;
-
-    const existsOnDisk = await this.vault.adapter.exists(normalized);
-    if (existsOnDisk) {
-      const retry = this.vault.getAbstractFileByPath(normalized);
-      if (retry && retry instanceof TFolder) return retry;
-    }
-
-    try {
-      return await this.vault.createFolder(normalized);
-    } catch {
-      const retry = this.vault.getAbstractFileByPath(normalized);
-      if (retry && retry instanceof TFolder) return retry;
-      if (await this.vault.adapter.exists(normalized)) {
-        const again = this.vault.getAbstractFileByPath(normalized);
-        if (again && again instanceof TFolder) return again;
-      }
-      throw new Error(`No se pudo crear/verificar la carpeta: ${normalized}`);
-    }
-  }
-
-  async ensureBaseFolders(): Promise<void> {
-    const base = normalizePath(`${this.settings.baseFolder}/${this.settings.libroActivo}`);
-    await this.ensureFolder(base);
-    await this.ensureFolder(`${base}/Clientes`);
-    await this.ensureFolder(`${base}/Proveedores`);
-    await this.ensureFolder(`${base}/Transacciones`);
-    await this.ensureFolder(`${base}/Deudas`);
-    await this.ensureFolder(`${base}/Inventario`);
-    await this.ensureFolder(`${base}/Comprobantes`);
-
-    const markerPath = normalizePath(`${this.settings.baseFolder}/.ordermanager`);
-    if (!(await this.vault.adapter.exists(markerPath))) {
-      try { await this.vault.adapter.write(markerPath, "ordermanager"); } catch { /* ok */ }
-    }
-  }
-
-  async discoverBooks(): Promise<{ books: string[]; actualBasePath: string }> {
-    const configuredPath = normalizePath(this.settings.baseFolder);
-    let matchedPath = configuredPath;
-
-    const dataFolders = ["Clientes", "Proveedores", "Transacciones", "Deudas", "Inventario"];
-
-    const collectFromIndex = (folder: TFolder): string[] =>
-      folder.children
-        .filter((c): c is TFolder => c instanceof TFolder)
-        .filter((sub) =>
-          sub.children.some(
-            (c) => c instanceof TFolder && dataFolders.includes(c.name)
-          )
-        )
-        .map((f) => f.name);
-
-    const collectFromAdapter = async (basePath: string): Promise<string[]> => {
-      const books: string[] = [];
-      try {
-        const listing = await this.vault.adapter.list(basePath);
-        for (const folderPath of listing.folders) {
-          const name = (folderPath.startsWith(basePath + "/")
-            ? folderPath.slice(basePath.length + 1)
-            : folderPath).split("/")[0];
-          if (!name || books.includes(name)) continue;
-          try {
-            const subListing = await this.vault.adapter.list(`${basePath}/${name}`);
-            const hasData = dataFolders.some((df) =>
-              subListing.folders.some((f) => f === `${basePath}/${name}/${df}`)
-            );
-            if (hasData) books.push(name);
-          } catch {
-            /* skip */
-          }
-        }
-      } catch {
-        /* basePath not readable */
-      }
-      return books;
-    };
-
-    const mergeAndDedup = (a: string[], b: string[]): string[] =>
-      [...new Set([...a, ...b])];
-
-    const baseRaw = this.vault.getAbstractFileByPath(configuredPath);
-    if (baseRaw instanceof TFolder) {
-      const indexed = collectFromIndex(baseRaw);
-      const fromDisk = await collectFromAdapter(configuredPath);
-      return { books: mergeAndDedup(indexed, fromDisk), actualBasePath: configuredPath };
-    }
-
-    const root = this.vault.getRoot();
-    if (root) {
-      for (const child of root.children) {
-        if (child instanceof TFolder && child.name.toLowerCase() === configuredPath.toLowerCase()) {
-          matchedPath = child.path;
-          const indexed = collectFromIndex(child);
-          const fromDisk = await collectFromAdapter(matchedPath);
-          return { books: mergeAndDedup(indexed, fromDisk), actualBasePath: matchedPath };
-        }
-      }
-    }
-
-    const exists = await this.vault.adapter.exists(configuredPath);
-    if (exists) {
-      const fromDisk = await collectFromAdapter(configuredPath);
-      return { books: fromDisk, actualBasePath: matchedPath };
-    }
-
-    const markerResult = await this.findByMarker();
-    if (markerResult) return markerResult;
-
-    return { books: [], actualBasePath: configuredPath };
-  }
-
-  private async findByMarker(): Promise<{ books: string[]; actualBasePath: string } | null> {
-    const root = this.vault.getRoot();
-    if (!root) return null;
-
-    const candidates: string[] = [];
-    try {
-      const rootListing = await this.vault.adapter.list("/");
-      for (const entry of rootListing.folders) {
-        const markerPath = `${entry}/.ordermanager`;
-        if (await this.vault.adapter.exists(markerPath)) {
-          candidates.push(entry);
-        }
-        try {
-          const subListing = await this.vault.adapter.list(entry);
-          for (const sub of subListing.folders) {
-            const subMarker = `${sub}/.ordermanager`;
-            if (await this.vault.adapter.exists(subMarker)) {
-              candidates.push(sub);
-            }
-          }
-        } catch { /* skip */ }
-      }
-    } catch { /* skip */ }
-
-    if (candidates.length > 0) {
-      const matchedPath = candidates[0];
-      const dataFolders = ["Clientes", "Proveedores", "Transacciones", "Deudas", "Inventario"];
-      const books: string[] = [];
-      try {
-        const listing = await this.vault.adapter.list(matchedPath);
-        for (const folderPath of listing.folders) {
-          const name = folderPath.startsWith(matchedPath + "/")
-            ? folderPath.slice(matchedPath.length + 1)
-            : folderPath.split("/").pop() || "";
-          if (!name) continue;
-          try {
-            const subListing = await this.vault.adapter.list(`${matchedPath}/${name}`);
-            if (dataFolders.some((df) => subListing.folders.includes(`${matchedPath}/${name}/${df}`))) {
-              if (!books.includes(name)) books.push(name);
-            }
-          } catch { /* skip */ }
-        }
-      } catch { /* skip */ }
-
-      if (books.length > 0) {
-        return { books, actualBasePath: matchedPath };
-      }
-    }
-
-    return null;
-  }
-
-  private comprobantesPath(): string {
-    return normalizePath(`${this.settings.baseFolder}/${this.settings.libroActivo}/Comprobantes`);
-  }
-
-  async saveComprobante(arrayBuffer: ArrayBuffer, originalName: string): Promise<string> {
-    await this.ensureFolder(this.comprobantesPath());
-    const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-    const sanitizedName = originalName.replace(/[\\/:*?"<>|]/g, "-");
-    const filename = `${ts}-${sanitizedName}`;
-    let finalPath = normalizePath(`${this.comprobantesPath()}/${filename}`);
-    let counter = 1;
-    while (this.vault.getAbstractFileByPath(finalPath)) {
-      const dotIdx = filename.lastIndexOf(".");
-      const base = dotIdx > 0 ? filename.substring(0, dotIdx) : filename;
-      const ext = dotIdx > 0 ? filename.substring(dotIdx) : "";
-      finalPath = normalizePath(`${this.comprobantesPath()}/${base}-${counter}${ext}`);
-      counter++;
-    }
-    await this.vault.createBinary(finalPath, arrayBuffer);
-    return finalPath;
-  }
-
-  async deleteComprobante(comprobantePath: string): Promise<void> {
-    if (!comprobantePath) return;
-    const file = this.vault.getAbstractFileByPath(comprobantePath);
-    if (file instanceof TFile) {
-      await this.app.fileManager.trashFile(file);
-    }
-  }
-
-  async deleteTransaccion(file: TFile): Promise<void> {
-    try {
-      const data = await this.readFrontmatter(file);
-      if (data.comprobante && typeof data.comprobante === "string") {
-        await this.deleteComprobante(data.comprobante);
-      }
-    } catch {
-      /* no comprobante or unreadable */
-    }
-    await this.app.fileManager.trashFile(file);
-  }
-
-  private async readFrontmatter(file: TFile): Promise<Record<string, unknown>> {
-    const content = await this.vault.cachedRead(file);
-    return parseFrontmatterFromContent(content).frontmatter;
-  }
-
-  private async readAllFrontmatter(folder: string): Promise<Array<{ file: TFile; data: Record<string, unknown> }>> {
-    await this.ensureFolder(folder);
-    const folderObj = this.vault.getAbstractFileByPath(folder);
-    if (!(folderObj instanceof TFolder)) return [];
-
-    const files = folderObj.children.filter((f): f is TFile => f instanceof TFile && f.extension === "md");
-    const results: Array<{ file: TFile; data: Record<string, unknown> }> = [];
-
-    for (const file of files) {
-      try {
-        const data = await this.readFrontmatter(file);
-        results.push({ file, data });
-      } catch {
-        // skip corrupt files
-      }
-    }
-
-    return results;
-  }
-
-  private async listFilesRecursive(folder: string): Promise<TFile[]> {
-    await this.ensureFolder(folder);
-    const folderObj = this.vault.getAbstractFileByPath(folder);
-    if (!(folderObj instanceof TFolder)) return [];
-
-    const files: TFile[] = [];
-    const stack: (TFolder | TFile)[] = [...(folderObj.children as (TFolder | TFile)[])];
-
-    while (stack.length > 0) {
-      const item = stack.pop()!;
-      if (item instanceof TFile && item.extension === "md") {
-        files.push(item);
-      } else if (item instanceof TFolder) {
-        stack.push(...(item.children as (TFolder | TFile)[]));
-      }
-    }
-
-    return files;
-  }
-
-  private async saveNewFile(folder: string, filename: string, content: string): Promise<TFile> {
-    await this.ensureFolder(folder);
-    const path = normalizePath(`${folder}/${filename}.md`);
-
-    let finalPath = path;
-    let counter = 1;
-    while (this.vault.getAbstractFileByPath(finalPath)) {
-      finalPath = normalizePath(`${folder}/${filename}-${counter}.md`);
-      counter++;
-    }
-
-    try {
-      return await this.vault.create(finalPath, content);
-    } catch (e) {
-      const retry = this.vault.getAbstractFileByPath(finalPath);
-      if (retry instanceof TFile) return retry;
-      throw e;
-    }
-  }
-
-  private async updateFile(file: TFile, frontmatter: Record<string, unknown>, body?: string): Promise<void> {
-    frontmatter.updated = now();
-    const content = buildMarkdownNote(frontmatter, body || "");
-    await this.vault.modify(file, content);
-  }
-
-  async deleteFile(file: TFile): Promise<void> {
-    await this.app.fileManager.trashFile(file);
-  }
+export class DataManager extends CategoriaManager {
 
   // ============= CLIENTES =============
 
   async getClientes(): Promise<Array<{ file: TFile; data: ClienteData }>> {
-    if (!this.settings.libroActivo) return [];
-    const results = await this.readAllFrontmatter(this.basePath("Clientes"));
-    return results
-      .filter((r) => r.data.tipo === "cliente")
-      .map((r) => ({ file: r.file, data: r.data as unknown as ClienteData }));
+    return this.getEntities<ClienteData>("Clientes", "cliente");
   }
 
   async saveCliente(
     data: Partial<ClienteData>,
     existingFile?: TFile
   ): Promise<TFile> {
-    const sanitizedName = (data.nombre || "cliente").replace(/[\\/:*?"<>|]/g, "-");
-    const nowStr = now();
-
-    if (existingFile) {
-      const updated: Record<string, unknown> = {
-        ...data,
-        tipo: "cliente",
-        updated: nowStr,
-      };
-      await this.updateFile(existingFile, updated, data.nombre ? `# ${data.nombre}\n` : undefined);
-      return existingFile;
-    }
-
-    const content = clienteTemplate({
-      ...data,
-      created: nowStr,
-      updated: nowStr,
-    } as Partial<ClienteData>);
-
-    return await this.saveNewFile(this.basePath("Clientes"), sanitizedName, content);
+    return this.saveSimpleEntity<ClienteData>(
+      data, "cliente", "Clientes", clienteTemplate, existingFile
+    );
   }
 
   // ============= PROVEEDORES =============
 
   async getProveedores(): Promise<Array<{ file: TFile; data: ProveedorData }>> {
-    if (!this.settings.libroActivo) return [];
-    const results = await this.readAllFrontmatter(this.basePath("Proveedores"));
-    return results
-      .filter((r) => r.data.tipo === "proveedor")
-      .map((r) => ({ file: r.file, data: r.data as unknown as ProveedorData }));
+    return this.getEntities<ProveedorData>("Proveedores", "proveedor");
   }
 
   async saveProveedor(
     data: Partial<ProveedorData>,
     existingFile?: TFile
   ): Promise<TFile> {
-    const sanitizedName = (data.nombre || "proveedor").replace(/[\\/:*?"<>|]/g, "-");
-    const nowStr = now();
-
-    if (existingFile) {
-      const updated: Record<string, unknown> = {
-        ...data,
-        tipo: "proveedor",
-        updated: nowStr,
-      };
-      await this.updateFile(existingFile, updated, data.nombre ? `# ${data.nombre}\n` : undefined);
-      return existingFile;
-    }
-
-    const content = proveedorTemplate({
-      ...data,
-      created: nowStr,
-      updated: nowStr,
-    } as Partial<ProveedorData>);
-
-    return await this.saveNewFile(this.basePath("Proveedores"), sanitizedName, content);
+    return this.saveSimpleEntity<ProveedorData>(
+      data, "proveedor", "Proveedores", proveedorTemplate, existingFile
+    );
   }
 
   // ============= TRANSACCIONES =============
@@ -403,9 +57,9 @@ export class DataManager {
     for (const file of files) {
       try {
         const content = await this.vault.cachedRead(file);
-        const parsed = parseFrontmatterFromContent(content);
-        if (parsed.frontmatter.tipo === "transaccion") {
-          const data = parsed.frontmatter as unknown as TransaccionData;
+        const parsed = parseFrontmatterFromContent(content).frontmatter;
+        if (parsed.tipo === "transaccion") {
+          const data = parsed as unknown as TransaccionData;
           if (typeof data.productos === "string") {
             try { data.productos = JSON.parse(data.productos as string) as ProductoEnTransaccion[]; } catch { data.productos = []; }
           }
@@ -598,133 +252,9 @@ export class DataManager {
     return await this.saveNewFile(this.basePath("Inventario"), sanitizedName, content);
   }
 
-  async getCategorias(): Promise<CategoriasData> {
-    if (!this.settings.libroActivo) {
-      return {
-        tipo: "categorias",
-        categoriasIngreso: [...DEFAULT_CATEGORIAS.categoriasIngreso],
-        categoriasEgreso: [...DEFAULT_CATEGORIAS.categoriasEgreso],
-        categoriasProducto: [...DEFAULT_CATEGORIAS.categoriasProducto],
-        categoriasCliente: [...DEFAULT_CATEGORIAS.categoriasCliente],
-        categoriasProveedor: [...DEFAULT_CATEGORIAS.categoriasProveedor],
-      };
-    }
-    const catPath = normalizePath(`${this.basePath("")}/_categorias.md`);
-    const file = this.vault.getAbstractFileByPath(catPath);
-    if (file instanceof TFile) {
-      try {
-        const data = await this.readFrontmatter(file);
-        if (data.tipo === "categorias") {
-          const parseArr = (field: unknown): string[] => {
-            if (Array.isArray(field)) return field as string[];
-            if (typeof field === "string") {
-              try { const parsed: unknown = JSON.parse(field); if (Array.isArray(parsed)) return parsed as string[]; } catch { /* */ }
-              if (field.includes(",")) return field.split(",");
-            }
-            return [];
-          };
-          return {
-            tipo: "categorias",
-            categoriasIngreso: parseArr(data.categoriasIngreso).length > 0 ? parseArr(data.categoriasIngreso) : [...DEFAULT_CATEGORIAS.categoriasIngreso],
-            categoriasEgreso: parseArr(data.categoriasEgreso).length > 0 ? parseArr(data.categoriasEgreso) : [...DEFAULT_CATEGORIAS.categoriasEgreso],
-            categoriasProducto: parseArr(data.categoriasProducto).length > 0 ? parseArr(data.categoriasProducto) : [...DEFAULT_CATEGORIAS.categoriasProducto],
-            categoriasCliente: parseArr(data.categoriasCliente).length > 0 ? parseArr(data.categoriasCliente) : [...DEFAULT_CATEGORIAS.categoriasCliente],
-            categoriasProveedor: parseArr(data.categoriasProveedor).length > 0 ? parseArr(data.categoriasProveedor) : [...DEFAULT_CATEGORIAS.categoriasProveedor],
-          };
-        }
-      } catch { /* corrupt file, fallback */ }
-    }
-    return {
-      tipo: "categorias" as const,
-      categoriasIngreso: [...DEFAULT_CATEGORIAS.categoriasIngreso],
-      categoriasEgreso: [...DEFAULT_CATEGORIAS.categoriasEgreso],
-      categoriasProducto: [...DEFAULT_CATEGORIAS.categoriasProducto],
-      categoriasCliente: [...DEFAULT_CATEGORIAS.categoriasCliente],
-      categoriasProveedor: [...DEFAULT_CATEGORIAS.categoriasProveedor],
-    };
-  }
-
-  async saveCategorias(data: CategoriasData): Promise<void> {
-    try {
-      const base = normalizePath(`${this.settings.baseFolder}/${this.settings.libroActivo}`);
-      await this.ensureFolder(base);
-      const catPath = normalizePath(`${base}/_categorias.md`);
-      const safe: Record<string, unknown> = {
-        tipo: "categorias",
-        categoriasIngreso: JSON.stringify([...data.categoriasIngreso]),
-        categoriasEgreso: JSON.stringify([...data.categoriasEgreso]),
-        categoriasProducto: JSON.stringify([...data.categoriasProducto]),
-        categoriasCliente: JSON.stringify([...data.categoriasCliente]),
-        categoriasProveedor: JSON.stringify([...data.categoriasProveedor]),
-        updated: now(),
-      };
-      const content = `---\n${stringifyYaml(safe)}\n---\n# Categorías\n`;
-      const file = this.vault.getAbstractFileByPath(catPath);
-      if (file instanceof TFile) {
-        await this.vault.modify(file, content);
-      } else {
-        await this.vault.create(catPath, content);
-      }
-    } catch (e) {
-      console.error("OrderManager: saveCategorias failed", e);
-    }
-  }
-
-  async migrateExistingBooks(): Promise<void> {
-    for (const libro of this.settings.libros) {
-      const catPath = normalizePath(`${this.settings.baseFolder}/${libro}/_categorias.md`);
-      if (!(await this.vault.adapter.exists(catPath))) {
-        const prevLibro = this.settings.libroActivo;
-        this.settings.libroActivo = libro;
-        try {
-          await this.ensureBaseFolders();
-          await this.saveCategorias({ ...DEFAULT_CATEGORIAS });
-        } finally {
-          this.settings.libroActivo = prevLibro;
-        }
-      }
-    }
-    if (this.settings.libros.length > 0 && !this.settings.libroActivo) {
-      this.settings.libroActivo = this.settings.libros[0];
-    }
-  }
+  // ============= RECURRING =============
 
   async processRecurring(): Promise<void> {
-    const transacciones = await this.getTransacciones();
-    const hoy = today();
-    for (const t of transacciones) {
-      const d = t.data;
-      if (!d.recurrente || !d.fecha) continue;
-      if (d.recurrente_hasta && d.recurrente_hasta < hoy) continue;
-
-      const lastDate = new Date(d.fecha + "T00:00:00");
-      const nextDate = new Date(lastDate);
-      if (d.recurrente === "semanal") nextDate.setDate(nextDate.getDate() + 7);
-      else if (d.recurrente === "quincenal") nextDate.setDate(nextDate.getDate() + 15);
-      else if (d.recurrente === "mensual") nextDate.setMonth(nextDate.getMonth() + 1);
-      else if (d.recurrente === "anual") nextDate.setFullYear(nextDate.getFullYear() + 1);
-      else continue;
-
-      const nextStr = nextDate.toISOString().split("T")[0];
-      if (nextStr > hoy) continue;
-      if (d.recurrente_hasta && nextStr > d.recurrente_hasta) continue;
-
-      const alreadyExists = transacciones.some(
-        (ot) =>
-          ot.data.recurrente === d.recurrente &&
-          ot.data.fecha === nextStr &&
-          ot.data.categoria === d.categoria &&
-          ot.data.monto === d.monto
-      );
-      if (alreadyExists) continue;
-
-      const newData: Partial<TransaccionData> = {
-        ...d,
-        fecha: nextStr,
-        created: now(),
-        updated: now(),
-      };
-      await this.saveTransaccion(newData);
-    }
+    await processRecurringImpl(this);
   }
 }

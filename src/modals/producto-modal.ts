@@ -45,9 +45,7 @@ export class ProductoModal extends Modal {
     contentEl.empty();
     contentEl.addClass("ordermanager-modal");
 
-    contentEl.createEl("h3", {
-      text: this.existingFile ? "Editar Producto" : "Nuevo Producto",
-    });
+    new Setting(contentEl).setName(this.existingFile ? "Editar Producto" : "Nuevo Producto").setHeading();
 
     this.proveedores = (await this.plugin.dataManager.getProveedores()).map((p) => p.data);
     const categorias = await this.plugin.dataManager.getCategorias();

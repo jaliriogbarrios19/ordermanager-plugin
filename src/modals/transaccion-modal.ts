@@ -3,17 +3,21 @@ import type OrderManagerPlugin from "../main";
 import type { TransaccionData, TipoOperacion, ModalidadPago, ProductoEnTransaccion, DeudaData } from "../types";
 import { MONEDA_SOURCES } from "../types";
 import { today, now } from "../utils/date";
-import { convertir, getRatesForDate } from "../utils/exchange";
-import { formatCurrency } from "../utils/currency";
 import { t } from "../i18n";
-import { TicketModal } from "./ticket-modal";
 import { ProductoModal } from "./producto-modal";
-import { ClienteModal } from "./cliente-modal";
-import { confirmAction } from "../utils/confirm";
-
-function esCategoriaDeuda(cat: string): boolean {
-  return /deuda/i.test(cat);
-}
+import {
+  actualizarMontoDesdeProductos,
+  buildPedidoSubtype,
+  buildCategoriaDropdown,
+  buildDeudaSection,
+  buildProductosList,
+  buildCreditoSection,
+  buildClienteProveedor,
+  renderComprobante,
+  buildFormFooter,
+  type TransaccionFormState,
+} from "./transaccion-form";
+import { type SaveHandlerContext } from "./transaccion-handlers";
 
 export class TransaccionModal extends Modal {
   plugin: OrderManagerPlugin;
@@ -40,7 +44,6 @@ export class TransaccionModal extends Modal {
   private clienteContainer!: HTMLElement;
   private proveedorContainer!: HTMLElement;
   private pedidoSubtypeContainer!: HTMLElement;
-  private productoTipoDd!: DropdownComponent;
 
   constructor(
     app: App,
@@ -85,15 +88,56 @@ export class TransaccionModal extends Modal {
     }
   }
 
+  private buildFormState(categorias: import("../types").CategoriasData): TransaccionFormState {
+    return {
+      data: this.data,
+      selectedProducts: this.selectedProducts,
+      selectedDebtFile: this.selectedDebtFile,
+      pedidoSubtype: this.pedidoSubtype,
+      montoInput: this.montoInput,
+      monedaDd: this.monedaDd,
+      clienteDd: this.clienteDd,
+      proveedorDd: this.proveedorDd,
+      descripcionInput: this.descripcionInput,
+      productosListEl: this.productosListEl,
+      creditoContainer: this.creditoContainer,
+      categoriaContainer: this.categoriaContainer,
+      deudaContainer: this.deudaContainer,
+      clienteContainer: this.clienteContainer,
+      proveedorContainer: this.proveedorContainer,
+      pedidoSubtypeContainer: this.pedidoSubtypeContainer,
+      clientes: this.clientes,
+      proveedores: this.proveedores,
+      productos: this.productos,
+      deudas: this.deudas,
+      plugin: this.plugin,
+      app: this.app,
+      existingFile: this.existingFile,
+    };
+  }
+
+  private buildSaveContext(): SaveHandlerContext {
+    return {
+      app: this.app,
+      plugin: this.plugin,
+      data: this.data,
+      selectedProducts: this.selectedProducts,
+      selectedDebtFile: this.selectedDebtFile,
+      pedidoSubtype: this.pedidoSubtype,
+      existingFile: this.existingFile,
+      onSubmit: this.onSubmit,
+      close: () => this.close(),
+    };
+  }
+
   async onOpen() {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("ordermanager-modal");
 
-    contentEl.createEl("h3", {
-      text: this.existingFile ? t("editTransaction") : t("newTransactionTitle"),
-    });
+    new Setting(contentEl).setName(this.existingFile ? t("editTransaction") : t("newTransactionTitle")).setHeading();
 
+    try {
     this.clientes = (await this.plugin.dataManager.getClientes()).map((c) => c.data);
     this.proveedores = (await this.plugin.dataManager.getProveedores()).map((p) => p.data);
     this.productos = (await this.plugin.dataManager.getProductos()).map((p) => p.data);
@@ -105,288 +149,6 @@ export class TransaccionModal extends Modal {
     }
 
     const form = contentEl.createDiv();
-
-    const actualizarMontoDesdeProductos = () => {
-      const total = this.selectedProducts.reduce(
-        (sum, p) => sum + p.cantidad * p.precio_unitario,
-        0
-      );
-      if (total > 0) {
-        if (this.data.modalidad_pago === "credito") {
-          this.data.monto_total = total;
-        } else {
-          this.data.monto = total;
-        }
-        this.montoInput.value = String(total);
-      }
-    };
-
-    const buildPedidoSubtype = () => {
-      this.pedidoSubtypeContainer.empty();
-      if (this.data.tipo_operacion !== "pedido") return;
-
-      new Setting(this.pedidoSubtypeContainer)
-        .setName(t("orderSubtype"))
-        .addDropdown((dd: DropdownComponent) => {
-          dd.addOption("compra", t("purchase"));
-          dd.addOption("venta", t("sale"));
-          dd.setValue(this.pedidoSubtype || "venta");
-          dd.onChange((v) => {
-            this.pedidoSubtype = v as "compra" | "venta";
-            this.data.clase = v === "compra" ? "egreso" : "ingreso";
-            this.data.categoria = "";
-            buildCategoriaDropdown(this.categoriaContainer);
-            buildDeudaSection();
-            buildClienteProveedor();
-          });
-        });
-    };
-
-    const buildCategoriaDropdown = (container: HTMLElement) => {
-      container.empty();
-      new Setting(container)
-        .setName(t("category"))
-        .addDropdown((dd: DropdownComponent) => {
-          dd.addOption("", "—");
-          const cats =
-            this.data.clase === "ingreso"
-              ? categorias.categoriasIngreso
-              : categorias.categoriasEgreso;
-          for (const cat of cats) {
-            dd.addOption(cat, cat);
-          }
-          dd.setValue(this.data.categoria || "");
-          dd.onChange((v) => {
-            this.data.categoria = v;
-            if (!esCategoriaDeuda(v)) {
-              this.data.deuda_ref = "";
-              this.selectedDebtFile = null;
-            }
-            buildDeudaSection();
-          });
-        });
-    };
-
-    const buildDeudaSection = () => {
-      this.deudaContainer.empty();
-      if (this.data.modalidad_pago !== "contado") return;
-      const cat = this.data.categoria || "";
-      if (!esCategoriaDeuda(cat)) return;
-
-      const claseFiltro = this.data.clase === "ingreso" ? "a_favor" : "en_contra";
-      const deudasPendientes = this.deudas.filter(
-        (d) =>
-          d.data.clase === claseFiltro &&
-          d.data.estado !== "pagada" &&
-          (d.data.monto_total || 0) > (d.data.monto_pagado || 0)
-      );
-
-      if (deudasPendientes.length === 0) {
-        this.deudaContainer.createEl("p", {
-          text: t("noDebtsAvailable"),
-          cls: "ordermanager-text-muted",
-        });
-        const p = this.deudaContainer.querySelector("p") as HTMLElement;
-        p.setCssProps({fontSize: "0.85em", margin: "8px 0"});
-        return;
-      }
-
-      new Setting(this.deudaContainer)
-        .setName(t("selectDebt"))
-        .addDropdown((dd: DropdownComponent) => {
-          dd.addOption("", "—");
-          for (const d of deudasPendientes) {
-            const restante = (d.data.monto_total || 0) - (d.data.monto_pagado || 0);
-            const label = `${d.data.descripcion || "Deuda"} (${formatCurrency(restante, d.data.moneda)})`;
-            dd.addOption(d.file.path, label);
-          }
-
-          if (this.data.deuda_ref) {
-            dd.setValue(this.data.deuda_ref);
-          }
-
-          dd.onChange((filePath) => {
-            if (!filePath) {
-              this.data.deuda_ref = "";
-              this.selectedDebtFile = null;
-              return;
-            }
-            const match = deudasPendientes.find((d) => d.file.path === filePath);
-            if (!match) return;
-
-            this.data.deuda_ref = filePath;
-            this.selectedDebtFile = match.file;
-            const debt = match.data;
-            const restante = (debt.monto_total || 0) - (debt.monto_pagado || 0);
-
-            this.data.monto = restante;
-            this.montoInput.value = String(restante);
-
-            this.data.moneda = debt.moneda;
-            try { this.monedaDd.setValue(debt.moneda); } catch { /* */ }
-
-            if (debt.clase === "a_favor") {
-              this.data.cliente = debt.cliente;
-              this.data.proveedor = "";
-              try { this.clienteDd.setValue(debt.cliente); } catch { /* */ }
-              try { this.proveedorDd.setValue(""); } catch { /* */ }
-            } else {
-              this.data.proveedor = debt.proveedor;
-              this.data.cliente = "";
-              try { this.proveedorDd.setValue(debt.proveedor); } catch { /* */ }
-              try { this.clienteDd.setValue(""); } catch { /* */ }
-            }
-
-            this.data.descripcion = `Abono: ${debt.descripcion || "Deuda"}`;
-            this.descripcionInput.value = this.data.descripcion;
-          });
-        });
-    };
-
-    const buildProductosList = () => {
-      this.productosListEl.empty();
-      if (this.selectedProducts.length === 0) {
-        this.productosListEl.createEl("p", {
-          text: t("noProducts"),
-          cls: "ordermanager-text-muted",
-        });
-        return;
-      }
-
-      const table = this.productosListEl.createEl("table", { cls: "ordermanager-table" });
-      const tbody = table.createEl("tbody");
-      for (let i = 0; i < this.selectedProducts.length; i++) {
-        const p = this.selectedProducts[i];
-        const row = tbody.createEl("tr");
-        row.createEl("td", { text: p.nombre });
-        row.createEl("td", { text: `${parseFloat(p.cantidad.toFixed(3))} ud` });
-        row.createEl("td", { text: formatCurrency(p.precio_unitario, this.data.moneda || "USD") });
-        row.createEl("td", {
-          text: formatCurrency(p.cantidad * p.precio_unitario, this.data.moneda || "USD"),
-        });
-        const delTd = row.createEl("td");
-        const delBtn = delTd.createEl("button", { text: "×" });
-        delBtn.addClass("ordermanager-btn-del");
-        delBtn.onclick = () => {
-          this.selectedProducts.splice(i, 1);
-          this.data.productos = [...this.selectedProducts];
-          actualizarMontoDesdeProductos();
-          buildProductosList();
-        };
-      }
-    };
-
-    const buildCreditoSection = () => {
-      this.creditoContainer.empty();
-      if (this.data.modalidad_pago !== "credito") return;
-
-      const resumen = this.creditoContainer.createDiv();
-      resumen.addClass("ordermanager-text-muted");
-      resumen.setCssProps({fontSize: "0.9em", marginBottom: "8px"});
-      const totalLabel = this.data.monto_total || this.data.monto || 0;
-      resumen.createSpan({ text: `${t("totalAmount")}: ` });
-      const totalVal = resumen.createSpan({ text: formatCurrency(totalLabel, this.data.moneda || "USD") });
-      totalVal.setCssProps({fontWeight: "600", color: "var(--text-normal)"});
-
-      new Setting(this.creditoContainer).setName(t("paidAmount")).addText((text) => {
-        text.inputEl.type = "number";
-        text.inputEl.step = "0.01";
-        text.setValue(String(this.data.monto || 0));
-        text.onChange((v) => {
-          this.data.monto = parseFloat(v) || 0;
-        });
-      });
-
-      const cuotasRow = this.creditoContainer.createDiv({ cls: "ordermanager-form-row" });
-      new Setting(cuotasRow.createDiv()).setName(t("installments")).addText((text) => {
-        text.inputEl.type = "number";
-        text.setValue(String(this.data.cuotas || 1));
-        text.onChange((v) => {
-          this.data.cuotas = parseInt(v) || 1;
-        });
-      });
-      new Setting(cuotasRow.createDiv()).setName(t("installmentsPaid")).addText((text) => {
-        text.inputEl.type = "number";
-        text.setValue(String(this.data.cuotas_pagadas || 0));
-        text.onChange((v) => {
-          this.data.cuotas_pagadas = parseInt(v) || 0;
-        });
-      });
-
-      new Setting(this.creditoContainer).setName(t("interestRate")).addText((text) => {
-        text.inputEl.type = "number";
-        text.inputEl.step = "0.01";
-        text.setValue(String(this.data.tasa_interes || 0));
-        text.onChange((v) => {
-          this.data.tasa_interes = parseFloat(v) || 0;
-        });
-      });
-
-      new Setting(this.creditoContainer).setName(t("dueDate")).addText((text) => {
-        text.inputEl.type = "date";
-        text.setValue(this.data.fecha_vencimiento || "");
-        text.onChange((v) => (this.data.fecha_vencimiento = v));
-      });
-    };
-
-    const buildClienteProveedor = () => {
-      this.clienteContainer.empty();
-      this.proveedorContainer.empty();
-
-      const mostrarCliente =
-        this.data.tipo_operacion === "venta" ||
-        (this.data.tipo_operacion === "pedido" && this.pedidoSubtype === "venta");
-      const mostrarProveedor =
-        this.data.tipo_operacion === "compra" ||
-        (this.data.tipo_operacion === "pedido" && this.pedidoSubtype === "compra");
-
-      if (mostrarCliente) {
-        new Setting(this.clienteContainer)
-          .setName(t("clientDebtor"))
-          .addDropdown((dd: DropdownComponent) => {
-            dd.addOption("", "—");
-            for (const c of this.clientes) {
-              dd.addOption(c.nombre, c.nombre);
-            }
-            dd.addOption("__new_client__", "➕ Nuevo cliente...");
-            dd.setValue(this.data.cliente || "");
-            dd.onChange((v) => { void (async () => {
-              if (v === "__new_client__") {
-                try { dd.setValue(this.data.cliente || ""); } catch { /* */ }
-                new ClienteModal(this.app, this.plugin, () => { void (async () => {
-                  this.clientes = (await this.plugin.dataManager.getClientes()).map((c) => c.data);
-                  const sel = dd.selectEl;
-                  sel.empty();
-                  sel.createEl("option", { value: "", text: "—" });
-                  for (const c of this.clientes) {
-                    sel.createEl("option", { value: c.nombre, text: c.nombre });
-                  }
-                  sel.createEl("option", { value: "__new_client__", text: "➕ Nuevo cliente..." });
-                  const last = this.clientes[this.clientes.length - 1];
-                  if (last) { this.data.cliente = last.nombre; dd.setValue(last.nombre); }
-                })(); }).open();
-                return;
-              }
-              this.data.cliente = v;
-            })(); });
-            this.clienteDd = dd;
-          });
-      }
-
-      if (mostrarProveedor) {
-        new Setting(this.proveedorContainer)
-          .setName(t("supplierCreditor"))
-          .addDropdown((dd: DropdownComponent) => {
-            dd.addOption("", "—");
-            for (const p of this.proveedores) {
-              dd.addOption(p.nombre, p.nombre);
-            }
-            dd.setValue(this.data.proveedor || "");
-            dd.onChange((v) => (this.data.proveedor = v));
-            this.proveedorDd = dd;
-          });
-      }
-    };
 
     new Setting(form)
       .setName(t("operationType"))
@@ -409,15 +171,15 @@ export class TransaccionModal extends Modal {
           this.selectedDebtFile = null;
           this.data.cliente = "";
           this.data.proveedor = "";
-          buildPedidoSubtype();
-          buildCategoriaDropdown(this.categoriaContainer);
-          buildDeudaSection();
-          buildClienteProveedor();
+          const s = this.buildFormState(categorias);
+          buildPedidoSubtype(s);
+          buildCategoriaDropdown(s, this.categoriaContainer, categorias);
+          buildDeudaSection(s);
+          buildClienteProveedor(s);
         });
       });
 
     this.pedidoSubtypeContainer = form.createDiv();
-    buildPedidoSubtype();
 
     new Setting(form)
       .setName(t("paymentModality"))
@@ -441,8 +203,9 @@ export class TransaccionModal extends Modal {
             }
             this.montoInput.value = String(this.data.monto || 0);
           }
-          buildCreditoSection();
-          buildDeudaSection();
+          const s = this.buildFormState(categorias);
+          buildCreditoSection(s);
+          buildDeudaSection(s);
         });
       });
 
@@ -538,15 +301,13 @@ export class TransaccionModal extends Modal {
       }
 
       this.data.productos = [...this.selectedProducts];
-      actualizarMontoDesdeProductos();
-      buildProductosList();
-
+      actualizarMontoDesdeProductos(state);
+      buildProductosList(state);
       resetProductSelection();
     };
 
     this.productosListEl = form.createDiv();
     this.productosListEl.setCssProps({marginBottom: "12px"});
-    buildProductosList();
 
     new Setting(form).setName(t("amount")).addText((text) => {
       text.inputEl.type = "number";
@@ -587,17 +348,18 @@ export class TransaccionModal extends Modal {
     });
 
     this.categoriaContainer = form.createDiv();
-    buildCategoriaDropdown(this.categoriaContainer);
-
     this.deudaContainer = form.createDiv();
-    buildDeudaSection();
-
     this.clienteContainer = form.createDiv();
     this.proveedorContainer = form.createDiv();
-    buildClienteProveedor();
-
     this.creditoContainer = form.createDiv();
-    buildCreditoSection();
+
+    const state = this.buildFormState(categorias);
+    buildPedidoSubtype(state);
+    buildCategoriaDropdown(state, this.categoriaContainer, categorias);
+    buildDeudaSection(state);
+    buildClienteProveedor(state);
+    buildCreditoSection(state);
+    buildProductosList(state);
 
     new Setting(form).setName(t("description")).addTextArea((text) => {
       text.setValue(this.data.descripcion || "").onChange((v) => (this.data.descripcion = v));
@@ -615,324 +377,15 @@ export class TransaccionModal extends Modal {
         dd.onChange((v) => (this.data.medio_pago = v));
       });
 
-    const compRow = form.createDiv({ cls: "setting-item" });
-    const compInfo = compRow.createDiv({ cls: "setting-item-info" });
-    compInfo.createDiv({ cls: "setting-item-name", text: t("receipt") });
-    const compControl = compRow.createDiv({ cls: "setting-item-control" });
-    const compPreview = form.createDiv();
-    compPreview.setCssProps({margin: "4px 0 12px 0"});
+    buildFormFooter(contentEl, form, state, this.buildSaveContext(), this.existingFile);
 
-    const renderPreview = () => {
-      compPreview.empty();
-      if (!this.data.comprobante) return;
-      const file = this.app.vault.getAbstractFileByPath(this.data.comprobante);
-      if (!(file instanceof TFile)) return;
-      const resourceUrl = this.app.vault.getResourcePath(file);
-      const ext = this.data.comprobante.split(".").pop()?.toLowerCase() || "";
-
-      if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(ext)) {
-        const img = compPreview.createEl("img");
-        img.src = resourceUrl;
-        img.setCssProps({maxWidth: "100%", maxHeight: "300px", marginTop: "8px", borderRadius: "4px", border: "1px solid var(--background-modifier-border)", cursor: "pointer"});
-        img.setAttr("title", "Click para abrir en tamaño completo");
-        img.onclick = () => {
-          void this.app.workspace.openLinkText(this.data.comprobante!, "", false);
-        };
-      } else if (ext === "pdf") {
-        const pdfBtn = compPreview.createEl("button", { text: "Ver PDF" });
-        pdfBtn.addClass("ordermanager-btn-accent");
-        pdfBtn.onclick = () => {
-          void this.app.workspace.openLinkText(this.data.comprobante!, "", false);
-        };
-      }
-    };
-
-    const renderComprobante = () => {
-      compControl.empty();
-      if (this.data.comprobante) {
-        const fileName = this.data.comprobante.split("/").pop() || this.data.comprobante;
-        const link = compControl.createEl("a", { text: fileName });
-        link.setCssProps({color: "var(--interactive-accent)", cursor: "pointer", textDecoration: "underline", marginRight: "8px", fontSize: "0.9em"});
-        link.onclick = () => {
-          void this.app.workspace.openLinkText(this.data.comprobante!, "", false);
-        };
-
-        const changeBtn = compControl.createEl("button", { text: "Cambiar" });
-        changeBtn.setCssProps({padding: "4px 8px", fontSize: "0.85em", marginRight: "6px"});
-        changeBtn.onclick = () => pickFile();
-
-        const removeBtn = compControl.createEl("button", { text: "×" });
-        removeBtn.addClass("ordermanager-btn-del");
-        removeBtn.onclick = async () => {
-          await this.plugin.dataManager.deleteComprobante(this.data.comprobante!);
-          this.data.comprobante = "";
-          renderComprobante();
-        };
-      } else {
-        const span = compControl.createEl("span", { text: "Sin adjuntar" });
-        span.addClass("ordermanager-text-muted");
-        span.setCssProps({fontSize: "0.85em", marginRight: "8px"});
-        const attachBtn = compControl.createEl("button", { text: "Adjuntar" });
-        attachBtn.setCssProps({padding: "4px 8px", fontSize: "0.85em"});
-        attachBtn.onclick = () => pickFile();
-      }
-      renderPreview();
-    };
-
-    const pickFile = () => {
-      const fileInput = activeDocument.createElement("input");
-      fileInput.type = "file";
-      fileInput.accept = ".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.zip";
-      fileInput.onchange = async () => {
-        const file = fileInput.files?.[0];
-        if (!file) return;
-        if (this.data.comprobante) {
-          await this.plugin.dataManager.deleteComprobante(this.data.comprobante);
-        }
-        const arrayBuffer = await file.arrayBuffer();
-        const vaultPath = await this.plugin.dataManager.saveComprobante(arrayBuffer, file.name);
-        this.data.comprobante = vaultPath;
-        renderComprobante();
-      };
-      fileInput.click();
-    };
-
-    renderComprobante();
-
-    const recRow = form.createDiv({ cls: "ordermanager-form-row" });
-    new Setting(recRow.createDiv())
-      .setName("Recurrente")
-      .addDropdown((dd: DropdownComponent) => {
-        dd.addOption("", "No");
-        dd.addOption("semanal", "Semanal");
-        dd.addOption("quincenal", "Quincenal");
-        dd.addOption("mensual", "Mensual");
-        dd.addOption("anual", "Anual");
-        dd.setValue(this.data.recurrente || "");
-        dd.onChange((v) => (this.data.recurrente = v));
+    } catch (err) {
+      console.error("OrderManager: error en TransaccionModal.onOpen()", err);
+      contentEl.createEl("p", {
+        text: `Error al cargar el formulario: ${err instanceof Error ? err.message : String(err)}`,
+        cls: "ordermanager-text-muted",
       });
-    new Setting(recRow.createDiv())
-      .setName("Válido hasta")
-      .addText((text) => {
-        text.inputEl.type = "date";
-        text.setValue(this.data.recurrente_hasta || "");
-        text.onChange((v) => (this.data.recurrente_hasta = v));
-      });
-
-    const actions = contentEl.createDiv({ cls: "ordermanager-form-actions" });
-    actions.createEl("button", { text: t("cancel"), cls: "secondary" }).onclick = () =>
-      this.close();
-    if (this.existingFile) {
-      actions.createEl("button", { text: t("delete"), cls: "danger" }).onclick = async () => {
-        if (!await confirmAction(this.app, "¿Eliminar esta transacción?")) return;
-        await this.plugin.dataManager.deleteTransaccion(this.existingFile!);
-        this.onSubmit();
-        this.close();
-      };
     }
-    if (this.existingFile && this.data.tipo_operacion === "pedido" && this.data.estado === "pedido") {
-      actions.createEl("button", { text: t("deliver"), cls: "primary" }).onclick = async () => {
-        if (!(this.data.monto && this.data.monto > 0) && this.data.modalidad_pago !== "credito") {
-          new Notice(t("amountRequired"));
-          return;
-        }
-
-        this.data.productos = [...this.selectedProducts];
-        const ref = this.plugin.settings.tasaReferencia || "USD";
-        const rates = this.plugin.settings.tasasCambio || { USD: 1 };
-        const isCompra = this.pedidoSubtype === "compra";
-
-        if (this.data.modalidad_pago === "credito") {
-          const montoTotal = this.data.monto_total || 0;
-          const montoPagado = this.data.monto || 0;
-          if (montoTotal <= 0) {
-            new Notice(t("totalAmountRequired"));
-            return;
-          }
-          const deudaClase = this.data.clase === "ingreso" ? "a_favor" : "en_contra";
-          const deudaData: Partial<DeudaData> = {
-            tipo: "deuda", clase: deudaClase, deuda_tipo: "dinero",
-            monto_total: montoTotal, monto_pagado: montoPagado,
-            moneda: this.data.moneda || this.plugin.settings.defaultCurrency,
-            fecha_inicio: this.data.fecha || today(),
-            fecha_vencimiento: this.data.fecha_vencimiento || "",
-            cliente: this.data.cliente || "", proveedor: this.data.proveedor || "",
-            descripcion: this.data.descripcion || "",
-            estado: montoPagado >= montoTotal ? "pagada" : "pendiente",
-            cuotas: this.data.cuotas || 1, cuotas_pagadas: this.data.cuotas_pagadas || 0,
-            tasa_interes: this.data.tasa_interes || 0,
-            monto_referencia: convertir(montoTotal, this.data.moneda || "USD", rates, ref),
-          };
-          const deudaFile = await this.plugin.dataManager.saveDeuda(deudaData);
-          if (montoPagado > 0) {
-            this.data.estado = "confirmado";
-            this.data.monto = montoPagado;
-            this.data.monto_referencia = convertir(montoPagado, this.data.moneda || "USD", rates, ref);
-            this.data.deuda_ref = deudaFile.path;
-            this.data.monto_total = montoTotal;
-            await this.plugin.dataManager.saveTransaccion(
-              { ...this.data, productos: [...this.selectedProducts] },
-              this.existingFile || undefined
-            );
-          }
-          if (isCompra && this.selectedProducts.length > 0) {
-            await this.plugin.dataManager.actualizarInventario({
-              clase: this.data.clase, productos: this.selectedProducts,
-            });
-          }
-        } else {
-          this.data.estado = "confirmado";
-          this.data.monto_referencia = convertir(
-            this.data.monto || 0, this.data.moneda || "USD", rates, ref
-          );
-          await this.plugin.dataManager.saveTransaccion(this.data, this.existingFile || undefined);
-          if (isCompra && this.selectedProducts.length > 0) {
-            await this.plugin.dataManager.actualizarInventario({
-              clase: this.data.clase, productos: this.selectedProducts,
-            });
-          }
-        }
-
-        this.onSubmit();
-        this.close();
-      };
-    }
-    actions.createEl("button", { text: t("generateTicket") }).onclick = async () => {
-      const faltanCampos = !this.data.monto || !this.data.fecha || !this.data.cliente;
-      if (faltanCampos) {
-        if (!await confirmAction(this.app, t("incompleteFields"))) return;
-      }
-      const clientes = await this.plugin.dataManager.getClientes();
-      const cliente = clientes.find((c) => c.data.nombre === this.data.cliente);
-      new TicketModal(this.app, this.plugin, this.data as TransaccionData, cliente?.data).open();
-    };
-    actions.createEl("button", { text: t("save"), cls: "primary" }).onclick = async () => {
-      if (!(this.data.monto && this.data.monto > 0) && this.data.modalidad_pago !== "credito") {
-        new Notice(t("amountRequired"));
-        return;
-      }
-
-      this.data.productos = [...this.selectedProducts];
-
-      const isNewPedido = this.data.tipo_operacion === "pedido" && !this.existingFile;
-
-      const ref = this.plugin.settings.tasaReferencia || "USD";
-      const rates = this.plugin.settings.tasasCambio || { USD: 1 };
-
-      if (this.data.modalidad_pago === "credito") {
-        const montoTotal = this.data.monto_total || 0;
-        const montoPagado = this.data.monto || 0;
-
-        if (montoTotal <= 0) {
-          new Notice(t("totalAmountRequired"));
-          return;
-        }
-
-        const deudaClase = this.data.clase === "ingreso" ? "a_favor" : "en_contra";
-        let deudaFile: TFile | null = null;
-
-        const deudaData: Partial<DeudaData> = {
-          tipo: "deuda",
-          clase: deudaClase,
-          deuda_tipo: "dinero",
-          monto_total: montoTotal,
-          monto_pagado: montoPagado,
-          moneda: this.data.moneda || this.plugin.settings.defaultCurrency,
-          fecha_inicio: this.data.fecha || today(),
-          fecha_vencimiento: this.data.fecha_vencimiento || "",
-          cliente: this.data.cliente || "",
-          proveedor: this.data.proveedor || "",
-          descripcion: this.data.descripcion || "",
-          estado: montoPagado >= montoTotal ? "pagada" : "pendiente",
-          cuotas: this.data.cuotas || 1,
-          cuotas_pagadas: this.data.cuotas_pagadas || 0,
-          tasa_interes: this.data.tasa_interes || 0,
-          monto_referencia: convertir(montoTotal, this.data.moneda || "USD", rates, ref),
-        };
-
-        deudaFile = await this.plugin.dataManager.saveDeuda(deudaData);
-
-        if (this.selectedProducts.length > 0 && !(isNewPedido && this.data.clase === "egreso")) {
-          await this.plugin.dataManager.actualizarInventario({
-            clase: this.data.clase,
-            productos: this.selectedProducts,
-          });
-        }
-
-        if (montoPagado > 0) {
-          this.data.monto = montoPagado;
-          this.data.monto_referencia = convertir(montoPagado, this.data.moneda || "USD", rates, ref);
-          this.data.deuda_ref = deudaFile.path;
-          this.data.monto_total = montoTotal;
-
-          if (isNewPedido) {
-            this.data.estado = "pedido";
-          }
-
-          const saveData: Partial<TransaccionData> = {
-            ...this.data,
-            productos: [...this.selectedProducts],
-          };
-
-          await this.plugin.dataManager.saveTransaccion(
-            saveData,
-            this.existingFile || undefined
-          );
-        }
-      } else {
-        if (this.selectedProducts.length > 0) {
-          this.data.monto = this.selectedProducts.reduce(
-            (sum, p) => sum + p.cantidad * p.precio_unitario,
-            0
-          );
-        }
-
-        this.data.monto_referencia = convertir(
-          this.data.monto || 0,
-          this.data.moneda || "USD",
-          rates,
-          ref
-        );
-
-        if (isNewPedido) {
-          this.data.estado = "pedido";
-        }
-
-        await this.plugin.dataManager.saveTransaccion(
-          this.data,
-          this.existingFile || undefined
-        );
-
-        if (isNewPedido && this.data.clase === "ingreso" && this.selectedProducts.length > 0) {
-          await this.plugin.dataManager.actualizarInventario({
-            clase: this.data.clase,
-            productos: this.selectedProducts,
-          });
-        }
-
-        if (this.data.deuda_ref && this.selectedDebtFile) {
-          const deudaFile = this.selectedDebtFile;
-          try {
-            const freshDeudas = await this.plugin.dataManager.getDeudas();
-            const fresh = freshDeudas.find((d) => d.file.path === deudaFile.path);
-            if (fresh) {
-              const debt = fresh.data;
-              const newPagado = (debt.monto_pagado || 0) + (this.data.monto || 0);
-              const updated = newPagado >= (debt.monto_total || 0) ? "pagada" : debt.estado;
-              await this.plugin.dataManager.saveDeuda(
-                { ...debt, monto_pagado: newPagado, estado: updated },
-                deudaFile
-              );
-            }
-          } catch (err) {
-            console.error("OrderManager: error al actualizar deuda vinculada", err);
-          }
-        }
-      }
-
-      this.onSubmit();
-      this.close();
-    };
   }
 
   onClose() {

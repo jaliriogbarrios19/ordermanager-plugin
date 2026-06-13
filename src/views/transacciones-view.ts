@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, WorkspaceLeaf, Setting } from "obsidian";
 import type OrderManagerPlugin from "../main";
 import { formatCurrency } from "../utils/currency";
 import { formatDate } from "../utils/date";
@@ -50,7 +50,7 @@ export class TransaccionesView extends ItemView {
     const container = this.contentEl;
     container.empty();
 
-    container.createEl("h2", { text: i18n("transactions") });
+    new Setting(container).setName(i18n("transactions")).setHeading();
 
     const backBtn = container.createEl("button", {
       text: i18n("backToDashboard"),
@@ -149,7 +149,7 @@ export class TransaccionesView extends ItemView {
 
       if (currentFiltered.length === 0) {
         const empty = tableWrapper.createDiv({ cls: "ordermanager-empty" });
-        empty.createEl("h3", { text: i18n("noTransactions") });
+        new Setting(empty).setName(i18n("noTransactions")).setHeading();
         empty.createEl("p", { text: i18n("noTransactionsDesc") });
         return;
       }

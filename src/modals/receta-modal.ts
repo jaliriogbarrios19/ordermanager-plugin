@@ -35,7 +35,7 @@ export class RecetaModal extends Modal {
     contentEl.empty();
     contentEl.addClass("ordermanager-modal");
 
-    contentEl.createEl("h3", { text: `Estructura de Costo \u2014 ${this.producto.nombre}` });
+    new Setting(contentEl).setName(`Estructura de Costo — ${this.producto.nombre}`).setHeading();
 
     const calcRow = contentEl.createDiv();
     calcRow.setCssProps({display: "flex", gap: "16px", marginBottom: "12px", alignItems: "center", flexWrap: "wrap"});
@@ -78,7 +78,7 @@ export class RecetaModal extends Modal {
 
     updateDisplay();
 
-    contentEl.createEl("h4", { text: "Insumos" });
+    new Setting(contentEl).setName("Insumos").setHeading();
 
     const tableWrapper = contentEl.createDiv();
 

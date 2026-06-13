@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, normalizePath } from "obsidian";
+import { ItemView, WorkspaceLeaf, normalizePath, Setting } from "obsidian";
 import type OrderManagerPlugin from "../main";
 import { ClienteModal } from "../modals/cliente-modal";
 import { VIEW_TYPE_DASHBOARD } from "./dashboard-view";
@@ -36,7 +36,7 @@ export class ClientesView extends ItemView {
     const container = this.contentEl;
     container.empty();
 
-    container.createEl("h2", { text: i18n("clients") });
+    new Setting(container).setName(i18n("clients")).setHeading();
 
     const backBtn = container.createEl("button", {
       text: i18n("backToDashboard"),
@@ -81,7 +81,7 @@ export class ClientesView extends ItemView {
 
       if (filtered.length === 0) {
         const empty = tableWrapper.createDiv({ cls: "ordermanager-empty" });
-        empty.createEl("h3", { text: i18n("noClients") });
+        new Setting(empty).setName(i18n("noClients")).setHeading();
         empty.createEl("p", { text: i18n("noClientsDesc") });
         return;
       }

@@ -57,9 +57,7 @@ export class DeudaModal extends Modal {
     contentEl.empty();
     contentEl.addClass("ordermanager-modal");
 
-    contentEl.createEl("h3", {
-      text: this.existingFile ? t("editDebt") : t("newDebtTitle"),
-    });
+    new Setting(contentEl).setName(this.existingFile ? t("editDebt") : t("newDebtTitle")).setHeading();
 
     this.clientes = (await this.plugin.dataManager.getClientes()).map((c) => c.data);
     this.proveedores = (await this.plugin.dataManager.getProveedores()).map((p) => p.data);
