@@ -13,7 +13,6 @@ import {
   buildProductosList,
   buildCreditoSection,
   buildClienteProveedor,
-  renderComprobante,
   buildFormFooter,
   type TransaccionFormState,
 } from "./transaccion-form";

@@ -1,6 +1,6 @@
-import { App, PluginSettingTab, Setting, DropdownComponent, Notice, TFolder, normalizePath } from "obsidian";
+import { App, PluginSettingTab, Setting, DropdownComponent, Notice, TFolder } from "obsidian";
 import type OrderManagerPlugin from "./main";
-import { FIAT_CURRENCIES, CRYPTO_CURRENCIES, DEFAULT_CATEGORIAS } from "./types";
+import { FIAT_CURRENCIES, CRYPTO_CURRENCIES } from "./types";
 import { LANG_LABELS, t } from "./i18n";
 import { buildTagList } from "./settings/tag-list";
 import { renderExchangeRatesSection } from "./settings/exchange-rates";

@@ -138,7 +138,6 @@ export class BookManager {
         const candidates: string[] = [];
         for (const entry of root.children) {
           if (!(entry instanceof TFolder)) continue;
-          const subListing = await this.vault.adapter.list(entry.path);
           const markerPath2 = `${entry.path}/.ordermanager`;
           if (await this.vault.adapter.exists(markerPath2)) {
             candidates.push(entry.path);

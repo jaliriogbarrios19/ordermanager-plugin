@@ -4,7 +4,6 @@ import { formatCurrency } from "../utils/currency";
 import { t } from "../i18n";
 import { ClienteModal } from "./cliente-modal";
 import { ProveedorModal } from "./proveedor-modal";
-import { ProductoModal } from "./producto-modal";
 import type OrderManagerPlugin from "../main";
 import type { SaveHandlerContext } from "./transaccion-handlers";
 import { handleDeliver, handleGenerateTicket, handleSave } from "./transaccion-handlers";

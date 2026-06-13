@@ -1,7 +1,6 @@
 import { App, Modal, Setting } from "obsidian";
 import { formatCurrency } from "../utils/currency";
 import { formatDate } from "../utils/date";
-import { t as i18n } from "../i18n";
 import type { DeudaData } from "../types";
 
 export class DeudasModal extends Modal {

@@ -1,4 +1,3 @@
-import { App, Notice } from "obsidian";
 import type OrderManagerPlugin from "../main";
 import { formatCurrency } from "../utils/currency";
 import { t as i18n } from "../i18n";
