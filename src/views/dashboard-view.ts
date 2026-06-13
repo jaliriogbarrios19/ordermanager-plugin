@@ -1,6 +1,5 @@
 import { ItemView, WorkspaceLeaf, Notice, Setting } from "obsidian";
 import type OrderManagerPlugin from "../main";
-import { formatCurrency } from "../utils/currency";
 import { monthStart, monthEnd, weekStart, weekEnd, today, yearStart, yearEnd, quarterStart, quarterEnd, lastYearStart, lastYearEnd } from "../utils/date";
 import { t as i18n } from "../i18n";
 import { convertir, fetchExchangeRates, rebaseRates, getRatesForDate } from "../utils/exchange";
