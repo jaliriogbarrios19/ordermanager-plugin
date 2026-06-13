@@ -1,4 +1,4 @@
-import { App, Modal, Notice } from "obsidian";
+import { App, Modal, Notice, Setting } from "obsidian";
 import type OrderManagerPlugin from "../main";
 import type { TransaccionData, ClienteData } from "../types";
 import { formatCurrency } from "../utils/currency";

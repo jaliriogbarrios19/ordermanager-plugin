@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice } from "obsidian";
+import { ItemView, WorkspaceLeaf, Notice, Setting } from "obsidian";
 import type OrderManagerPlugin from "../main";
 import { DeudaModal } from "../modals/deuda-modal";
 import { formatCurrency } from "../utils/currency";
