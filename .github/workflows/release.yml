@@ -3,29 +3,13 @@ name: Release
 on:
   push:
     tags:
-      - "[0-9]+.[0-9]+.[0-9]+"
-      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "[0-9]*.[0-9]*.[0-9]*"
 
 permissions:
   contents: write
-  id-token: write
-  attestations: write
 
 jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Reject v-prefixed tags
-        if: startsWith(github.ref_name, 'v')
-        run: |
-          echo "ERROR: Release tags must NOT use 'v' prefix."
-          echo "Obsidian matches manifest.json version against the tag exactly."
-          echo "Use tag without prefix: ${GITHUB_REF_NAME#v}"
-          exit 1
-
-  build:
-    needs: validate
-    if: "!startsWith(github.ref_name, 'v')"
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,41 +17,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
 
-      - name: Build
-        run: npm run build
+      - run: npm run build
 
-      - name: Attest build artifacts
-        uses: actions/attest@v4
-        with:
-          subject-path: |
-            main.js
-            styles.css
-
-      - name: Extract changelog
-        id: changelog
-        run: |
-          prev_tag=$(git tag --sort=-creatordate | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sed -n '2p')
-          if [ -n "$prev_tag" ]; then
-            echo "## Cambios desde $prev_tag" > release_notes.md
-            echo '```' >> release_notes.md
-            git log ${prev_tag}..HEAD --format='- %s' --no-merges >> release_notes.md
-            echo '```' >> release_notes.md
-          else
-            echo "## Primer release" > release_notes.md
-            echo '```' >> release_notes.md
-            git log --format='- %s' --no-merges >> release_notes.md
-            echo '```' >> release_notes.md
-          fi
-
-      - name: Create Release
+      - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             main.js
             manifest.json
             styles.css
-          body_path: release_notes.md
+          generate_release_notes: true
