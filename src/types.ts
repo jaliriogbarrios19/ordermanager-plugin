@@ -160,6 +160,7 @@ export interface OrderManagerSettings {
   categoriasProducto: string[];
   categoriasCliente: string[];
   categoriasProveedor: string[];
+  lastSeenVersion: string;
 }
 
 export const FIAT_CURRENCIES = [
@@ -226,4 +227,5 @@ export const DEFAULT_SETTINGS: OrderManagerSettings = {
   categoriasProducto: ["General", "Materia prima", "Producto terminado", "Servicio"],
   categoriasCliente: ["Minorista", "Mayorista", "Corporativo"],
   categoriasProveedor: ["Insumos", "Servicios", "Tecnología", "Logística", "Otros"],
+  lastSeenVersion: "",
 };

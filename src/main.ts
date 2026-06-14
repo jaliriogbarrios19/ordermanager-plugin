@@ -17,6 +17,7 @@ import { ProductoModal } from "./modals/producto-modal";
 
 import type { OrderManagerSettings } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
+import { WhatsNewModal } from "./whats-new-modal";
 
 export default class OrderManagerPlugin extends Plugin {
   settings: OrderManagerSettings;
@@ -177,6 +178,7 @@ export default class OrderManagerPlugin extends Plugin {
       },
     });
 
+    this.checkWhatsNew();
   }
 
   async activateView(viewType: string) {
@@ -227,6 +229,19 @@ export default class OrderManagerPlugin extends Plugin {
     await this.saveData(this.settings);
     if (this.dataManager) {
       this.dataManager.updateSettings(this.settings);
+    }
+  }
+
+  private checkWhatsNew(): void {
+    const currentVersion = this.manifest.version;
+    const lastSeen = this.settings.lastSeenVersion;
+
+    if (lastSeen !== currentVersion) {
+      window.setTimeout(() => {
+        new WhatsNewModal(this.app, lastSeen).open();
+        this.settings.lastSeenVersion = currentVersion;
+        void this.saveSettings();
+      }, 1000);
     }
   }
 
