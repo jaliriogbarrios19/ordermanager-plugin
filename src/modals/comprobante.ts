@@ -1,4 +1,4 @@
-import { TFile } from "obsidian";
+import { Platform, TFile } from "obsidian";
 import type { TransaccionData } from "../types";
 import type OrderManagerPlugin from "../main";
 
@@ -25,8 +25,10 @@ export function renderComprobante(
       const img = compPreview.createEl("img");
       img.src = resourceUrl;
       img.setCssProps({
+        width: "100%",
         maxWidth: "120px",
         maxHeight: "120px",
+        height: "auto",
         objectFit: "contain",
         marginTop: "8px",
         borderRadius: "4px",
@@ -47,10 +49,14 @@ export function renderComprobante(
     }
   };
 
-  const pickFile = () => {
+  const pickFile = (useCamera = false) => {
     const fileInput = activeDocument.createElement("input");
     fileInput.type = "file";
     fileInput.accept = ".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.zip";
+    if (useCamera) {
+      fileInput.accept = "image/*";
+      fileInput.setAttribute("capture", "environment");
+    }
     fileInput.onchange = async () => {
       const file = fileInput.files?.[0];
       if (!file) return;
@@ -78,6 +84,11 @@ export function renderComprobante(
       const changeBtn = compControl.createEl("button", { text: "Cambiar" });
       changeBtn.setCssProps({padding: "4px 8px", fontSize: "0.85em", marginRight: "6px"});
       changeBtn.onclick = () => pickFile();
+      if (Platform.isMobile) {
+        const cameraBtn = compControl.createEl("button", { text: "📷" });
+        cameraBtn.setCssProps({padding: "4px 8px", fontSize: "0.85em", marginRight: "6px"});
+        cameraBtn.onclick = () => pickFile(true);
+      }
 
       const removeBtn = compControl.createEl("button", { text: "×" });
       removeBtn.addClass("ordermanager-btn-del");
@@ -93,6 +104,11 @@ export function renderComprobante(
       const attachBtn = compControl.createEl("button", { text: "Adjuntar" });
       attachBtn.setCssProps({padding: "4px 8px", fontSize: "0.85em"});
       attachBtn.onclick = () => pickFile();
+      if (Platform.isMobile) {
+        const cameraBtn = compControl.createEl("button", { text: "📷" });
+        cameraBtn.setCssProps({padding: "4px 8px", fontSize: "0.85em", marginLeft: "4px"});
+        cameraBtn.onclick = () => pickFile(true);
+      }
     }
     renderPreview();
   };
